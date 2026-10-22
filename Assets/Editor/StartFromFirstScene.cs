@@ -1,7 +1,6 @@
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 /// <summary>
 /// Ten skrypt edytora zapewnia, że gra zawsze startuje ze sceny 0 z Build Settings.

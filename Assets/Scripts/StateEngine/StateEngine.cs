@@ -107,7 +107,7 @@ namespace CardRogue.StateEngine
                 }
             }
 
-            // Run end-of-turn hooks before decrementing durations and removing expired statuses.
+            // Call at the round boundary, after both player and enemy turns; durations tick once here.
             foreach (StatusInstance status in snapshot)
             {
                 if (owner.HasStatus(status) && status.TickDuration())
