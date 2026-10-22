@@ -1,4 +1,5 @@
 using CardRogue.StateEngine;
+using CardRogue.StateEngine.Pipeline;
 using UnityEngine;
 
 // main class for managing the game state and flow
@@ -7,6 +8,7 @@ public class GameManager : MonoBehaviour
     public static GameManager Instance { get; private set; }
     private RunManager _runManager;
     private StateEngine _stateEngine;
+    private EffectPipeline pipeline;
 
     void Awake()
     {
@@ -19,8 +21,14 @@ public class GameManager : MonoBehaviour
             Instance = this;
             DontDestroyOnLoad(this.gameObject);
         }
+    }
 
-        _stateEngine = new StateEngine();
+    public void StartGameInitialization()
+    {
+        pipeline = new EffectPipeline();
+        _stateEngine = new StateEngine(pipeline);
+
+        SceneTransitionManager.Instance.LoadSceneLocal(GameScene.MENU, "Welcome!");
     }
 
     [ContextMenu("Start Game")]

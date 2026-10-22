@@ -9,17 +9,8 @@ namespace CardRogue.StateEngine
     {
         private readonly EffectPipeline _effectPipeline;
 
-        public StateEngine() : this(new EffectPipeline())
-        {
-        }
-
         public StateEngine(EffectPipeline effectPipeline)
         {
-            if (effectPipeline == null)
-            {
-                throw new ArgumentNullException(nameof(effectPipeline));
-            }
-
             _effectPipeline = effectPipeline;
         }
 

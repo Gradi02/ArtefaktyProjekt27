@@ -10,7 +10,7 @@ namespace CardRogue.StateEngine.StatusSystem
 
     [CreateAssetMenu(
         fileName = "StatusDefinition",
-        menuName = "Card Rogue/State Engine/Status Definition")]
+        menuName = "State Engine/Status Definition")]
     public class StatusDefinition : ScriptableObject
     {
         [SerializeField] private string id;
