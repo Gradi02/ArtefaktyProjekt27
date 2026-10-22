@@ -403,6 +403,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: TransitionManager
       objectReference: {fileID: 0}
+    - target: {fileID: 1030587699200198389, guid: ef6f92842d4423c4f88fb381e756a27b, type: 3}
+      propertyPath: m_SortingOrder
+      value: 32767
+      objectReference: {fileID: 0}
     - target: {fileID: 1057961128825886824, guid: ef6f92842d4423c4f88fb381e756a27b, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0.71021

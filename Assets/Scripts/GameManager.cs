@@ -31,12 +31,20 @@ public class GameManager : MonoBehaviour
         SceneTransitionManager.Instance.LoadSceneLocal(GameScene.MENU, "Welcome!");
     }
 
-    [ContextMenu("Start Game")]
+    
     public void StartRun()
     {
         // get selected player character
         Player selectedCharacter = null;
 
         _runManager = new RunManager(selectedCharacter, _stateEngine);
+        SceneTransitionManager.Instance.LoadSceneLocal(GameScene.GAME, "RUN!");
+    }
+
+    [ContextMenu("End Run")]
+    public void EndRun()
+    {
+        _runManager = null;
+        SceneTransitionManager.Instance.LoadSceneLocal(GameScene.MENU, "Game Over!");
     }
 }
