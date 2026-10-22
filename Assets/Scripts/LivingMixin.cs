@@ -1,10 +1,14 @@
 using System;
+using System.Collections.Generic;
+using CardRogue.StateEngine;
+using CardRogue.StateEngine.StatusSystem;
 using UnityEngine;
 
-public class LivingMixin : MonoBehaviour
+public class LivingMixin : MonoBehaviour, IStateEntity
 {
     private int _health;
     [SerializeField] private int _maxHealth;
+    private readonly List<StatusInstance> _activeStatuses = new List<StatusInstance>();
 
     public int health
     {
@@ -15,6 +19,9 @@ public class LivingMixin : MonoBehaviour
     public int maxHealth => _maxHealth;
     public bool isAlive => health > 0;
     public bool isDead => !isAlive;
+
+    int IStateEntity.Health => health;
+    IReadOnlyList<StatusInstance> IStateEntity.ActiveStatuses => _activeStatuses;
 
     public event EventHandler<HealthChangeEventArgs> onHeal;
     public event EventHandler<HealthChangeEventArgs> onHurt;
@@ -40,6 +47,34 @@ public class LivingMixin : MonoBehaviour
             Debug.LogWarning("Hurt amount should be above zero!", this);
         }
         return SetHealth(health - amount);
+    }
+
+    void IStateEntity.ApplyDamage(int amount)
+    {
+        if (amount < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(amount), "Damage must not be negative.");
+        }
+
+        if (amount > 0)
+        {
+            Hurt(amount);
+        }
+    }
+
+    void IStateEntity.AddStatus(StatusInstance status)
+    {
+        _activeStatuses.Add(status);
+    }
+
+    bool IStateEntity.RemoveStatus(StatusInstance status)
+    {
+        return _activeStatuses.Remove(status);
+    }
+
+    bool IStateEntity.HasStatus(StatusInstance status)
+    {
+        return _activeStatuses.Contains(status);
     }
 
     public HealthChangeEventArgs FullHeal() => SetHealth(maxHealth);
