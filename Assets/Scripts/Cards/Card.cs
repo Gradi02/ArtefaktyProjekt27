@@ -1,9 +1,14 @@
+using System;
+
 public class Card
 {
-    public readonly CardDefinition definition;
-
-    public Card(CardDefinition def)
+    public readonly CardDefinition Definition;
+    
+    public Card(CardDefinition definition)
     {
-        definition = def;
+        if (!definition)
+            throw new ArgumentNullException("Card can't have null definition!");
+        
+        this.Definition = definition;
     }
 }
