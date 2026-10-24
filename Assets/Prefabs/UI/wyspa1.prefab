@@ -10,6 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 4185582553378631736}
   - component: {fileID: 2894867929844157599}
+  - component: {fileID: 1384246478388018471}
   m_Layer: 0
   m_Name: palma_1 (2)
   m_TagString: Untagged
@@ -26,7 +27,7 @@ Transform:
   m_GameObject: {fileID: 3075761668692133969}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 1.0100002, y: 0.9499998, z: 0}
+  m_LocalPosition: {x: 1.3699999, y: 0.19999981, z: 0}
   m_LocalScale: {x: 4, y: 4, z: 4}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -91,6 +92,18 @@ SpriteRenderer:
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
   m_SpriteSortPoint: 0
+--- !u!114 &1384246478388018471
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3075761668692133969}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8e3a1c6f4b2d49a7b5c0d6e9f1a3b82c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PalmSway
 --- !u!1 &7857762852586415688
 GameObject:
   m_ObjectHideFlags: 0
@@ -227,6 +240,7 @@ GameObject:
   m_Component:
   - component: {fileID: 5985965424708652931}
   - component: {fileID: 2706967127854598398}
+  - component: {fileID: 2257554944004789156}
   m_Layer: 0
   m_Name: palma_1
   m_TagString: Untagged
@@ -243,7 +257,7 @@ Transform:
   m_GameObject: {fileID: 8177902469513545910}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -1.8899994, y: 0.9699998, z: 0}
+  m_LocalPosition: {x: -1.53, y: 0.22, z: 0}
   m_LocalScale: {x: 4, y: 4, z: 4}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -308,6 +322,18 @@ SpriteRenderer:
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
   m_SpriteSortPoint: 0
+--- !u!114 &2257554944004789156
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8177902469513545910}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8e3a1c6f4b2d49a7b5c0d6e9f1a3b82c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PalmSway
 --- !u!1 &8854719802533227510
 GameObject:
   m_ObjectHideFlags: 0
@@ -318,6 +344,7 @@ GameObject:
   m_Component:
   - component: {fileID: 5909289250027149509}
   - component: {fileID: 8514077222828855991}
+  - component: {fileID: 5613693116915606799}
   m_Layer: 0
   m_Name: palma_1 (1)
   m_TagString: Untagged
@@ -334,7 +361,7 @@ Transform:
   m_GameObject: {fileID: 8854719802533227510}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -0.10999966, y: 0.78999996, z: 0}
+  m_LocalPosition: {x: 0.25, y: 0.03999996, z: 0}
   m_LocalScale: {x: 3, y: 3, z: 3}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -399,3 +426,15 @@ SpriteRenderer:
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
   m_SpriteSortPoint: 0
+--- !u!114 &5613693116915606799
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8854719802533227510}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8e3a1c6f4b2d49a7b5c0d6e9f1a3b82c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PalmSway

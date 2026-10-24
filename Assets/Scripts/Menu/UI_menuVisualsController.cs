@@ -36,6 +36,22 @@ public class UI_menuVisualsController : MonoBehaviour
     [SerializeField] private float islandShipClearance = 0.25f;
     [SerializeField] private Transform islandContainer;
 
+    [Header("Chmury")]
+    [SerializeField] private bool spawnClouds = true;
+    [SerializeField] private float cloudMinY = 2.4f;
+    [SerializeField] private float cloudMaxY = 4.2f;
+    [SerializeField] private float cloudMinScale = 0.7f;
+    [SerializeField] private float cloudMaxScale = 1.35f;
+    [SerializeField] private float cloudMinSpeed = 0.12f;
+    [SerializeField] private float cloudMaxSpeed = 0.35f;
+    [SerializeField] private float cloudSpawnInterval = 2.2f;
+    [SerializeField] private float cloudSpawnMargin = 2f;
+    [Tooltip("Liczba chmur tworzonych natychmiast po zaladowaniu menu.")]
+    [SerializeField] private int initialCloudCount = 5;
+    [Tooltip("Sprite'y chmur losowane podczas generowania.")]
+    [SerializeField] private Sprite[] cloudSprites;
+    [SerializeField] private Transform cloudContainer;
+
     [Header("Punkt powstawania piany")]
     [Tooltip("Punkt na rufie/kadłubie gdzie styka się z wodą")]
     [SerializeField] private Vector3 foamSpawnOffset = new Vector3(-0.6f, -0.3f, 0f);
@@ -61,12 +77,14 @@ public class UI_menuVisualsController : MonoBehaviour
     private Vector4[] splinePoints = new Vector4[POINT_COUNT];
     private Vector2[] splinePointVelocities = new Vector2[POINT_COUNT];
     private readonly List<SpawnedIsland> spawnedIslands = new List<SpawnedIsland>();
+    private readonly List<Transform> spawnedClouds = new List<Transform>();
 
     private MaterialPropertyBlock propBlock;
     private static readonly int SplinePointsID = Shader.PropertyToID("_SplinePoints");
     private Camera mainCamera;
     private float upperIslandSpawnTimer;
     private float lowerIslandSpawnTimer;
+    private float cloudSpawnTimer;
 
     private sealed class SpawnedIsland
     {
@@ -99,6 +117,14 @@ public class UI_menuVisualsController : MonoBehaviour
             upperIslandSpawnTimer = upperIslandSpawnInterval;
             lowerIslandSpawnTimer = lowerIslandSpawnInterval;
         }
+
+        if (spawnClouds)
+        {
+            for (int i = 0; i < initialCloudCount; i++)
+            {
+                SpawnCloud(Random.Range(-0.1f, 1.1f));
+            }
+        }
     }
 
     private void Update()
@@ -120,6 +146,7 @@ public class UI_menuVisualsController : MonoBehaviour
         );
 
         UpdateIslands(dt);
+        UpdateClouds(dt);
 
         if (waterRenderer == null) return;
 
@@ -202,6 +229,64 @@ public class UI_menuVisualsController : MonoBehaviour
             lowerIslandSpawnTimer -= lowerIslandSpawnInterval;
             SpawnIsland(false);
         }
+    }
+
+    private void UpdateClouds(float dt)
+    {
+        if (!spawnClouds || mainCamera == null || cloudSprites == null || cloudSprites.Length == 0)
+        {
+            return;
+        }
+
+        float leftEdge = GetCameraWorldX(0f) - cloudSpawnMargin;
+        for (int i = spawnedClouds.Count - 1; i >= 0; i--)
+        {
+            Transform cloud = spawnedClouds[i];
+            if (cloud == null)
+            {
+                spawnedClouds.RemoveAt(i);
+                continue;
+            }
+
+            if (GetRendererBounds(cloud).max.x < leftEdge)
+            {
+                Destroy(cloud.gameObject);
+                spawnedClouds.RemoveAt(i);
+            }
+        }
+
+        cloudSpawnTimer += dt;
+        if (cloudSpawnTimer < cloudSpawnInterval)
+        {
+            return;
+        }
+
+        cloudSpawnTimer -= cloudSpawnInterval;
+        SpawnCloud(1f);
+    }
+
+    private void SpawnCloud(float viewportX)
+    {
+        float spawnX = GetCameraWorldX(viewportX);
+        if (viewportX >= 1f)
+        {
+            spawnX += cloudSpawnMargin;
+        }
+
+        float spawnY = Random.Range(cloudMinY, cloudMaxY);
+        GameObject cloudObject = new GameObject("Cloud");
+        cloudObject.transform.SetParent(cloudContainer);
+        cloudObject.transform.position = new Vector3(spawnX, spawnY, 0f);
+        cloudObject.transform.localScale = Vector3.one * Random.Range(cloudMinScale, cloudMaxScale);
+
+        SpriteRenderer renderer = cloudObject.AddComponent<SpriteRenderer>();
+        renderer.sprite = cloudSprites[Random.Range(0, cloudSprites.Length)];
+        renderer.color = new Color(0.92f, 0.97f, 1f, Random.Range(0.75f, 0.95f));
+        renderer.sortingOrder = -2;
+
+        CloudMovement movement = cloudObject.AddComponent<CloudMovement>();
+        movement.Initialize(Random.Range(cloudMinSpeed, cloudMaxSpeed));
+        spawnedClouds.Add(cloudObject.transform);
     }
 
     private void SpawnIsland(bool upperLane)

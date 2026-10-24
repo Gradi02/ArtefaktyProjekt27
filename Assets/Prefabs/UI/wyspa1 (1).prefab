@@ -10,6 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 4905764972901909921}
   - component: {fileID: 5654168203040041724}
+  - component: {fileID: 2840251152000956250}
   m_Layer: 0
   m_Name: palma_1 (1)
   m_TagString: Untagged
@@ -26,7 +27,7 @@ Transform:
   m_GameObject: {fileID: 2438099150110566018}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.67, y: 0.91, z: 0}
+  m_LocalPosition: {x: 0.582, y: 0.076, z: 0}
   m_LocalScale: {x: 4, y: 4, z: 4}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -91,6 +92,18 @@ SpriteRenderer:
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
   m_SpriteSortPoint: 0
+--- !u!114 &2840251152000956250
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2438099150110566018}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8e3a1c6f4b2d49a7b5c0d6e9f1a3b82c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PalmSway
 --- !u!1 &5901206570095117326
 GameObject:
   m_ObjectHideFlags: 0
@@ -135,6 +148,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2315880643061949086}
   - component: {fileID: 2678639377173046569}
+  - component: {fileID: 3393370989177438064}
   m_Layer: 0
   m_Name: palma_1 (2)
   m_TagString: Untagged
@@ -151,7 +165,7 @@ Transform:
   m_GameObject: {fileID: 7516017581980344526}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -0.57, y: 0.69, z: 0}
+  m_LocalPosition: {x: -1.172, y: 0.079, z: 0}
   m_LocalScale: {x: 3, y: 3, z: 3}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -216,6 +230,18 @@ SpriteRenderer:
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
   m_SpriteSortPoint: 0
+--- !u!114 &3393370989177438064
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7516017581980344526}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8e3a1c6f4b2d49a7b5c0d6e9f1a3b82c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PalmSway
 --- !u!1 &8075604441565855290
 GameObject:
   m_ObjectHideFlags: 0

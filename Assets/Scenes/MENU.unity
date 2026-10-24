@@ -119,6 +119,37 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &295432214
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 295432215}
+  m_Layer: 0
+  m_Name: cloudContainer
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &295432215
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 295432214}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 6.01679, y: 1.93143, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &637119298
 GameObject:
   m_ObjectHideFlags: 0
@@ -281,11 +312,27 @@ MonoBehaviour:
   upperIslandMaxScale: 0.7
   lowerIslandMinScale: 1.75
   lowerIslandMaxScale: 2.25
-  upperIslandSpawnInterval: 30
-  lowerIslandSpawnInterval: 20
+  upperIslandSpawnInterval: 90
+  lowerIslandSpawnInterval: 30
   islandSpawnMargin: 10
   islandShipClearance: 0.25
   islandContainer: {fileID: 1907518794}
+  spawnClouds: 1
+  cloudMinY: 2.5
+  cloudMaxY: 4
+  cloudMinScale: 2
+  cloudMaxScale: 3
+  cloudMinSpeed: 0.12
+  cloudMaxSpeed: 0.35
+  cloudSpawnInterval: 2.2
+  cloudSpawnMargin: 2
+  initialCloudCount: 10
+  cloudSprites:
+  - {fileID: 8499593146109536186, guid: 82146b35b463ad7459285e4ebee072d5, type: 3}
+  - {fileID: 8684650717235869463, guid: 82146b35b463ad7459285e4ebee072d5, type: 3}
+  - {fileID: -2633424888694065643, guid: 82146b35b463ad7459285e4ebee072d5, type: 3}
+  - {fileID: -8531568987109590661, guid: 82146b35b463ad7459285e4ebee072d5, type: 3}
+  cloudContainer: {fileID: 295432215}
   foamSpawnOffset: {x: -0.1, y: -0.35, z: 0}
   foamDriftSpeed: 0.25
   foamPointFollowTime: 0.18
@@ -696,7 +743,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 1
+  m_SortingOrder: 8
   m_MaskInteraction: 0
   m_Sprite: {fileID: 21300000, guid: 498f24c9c3e6fbf4cb416ff59a1adb6d, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -928,3 +975,4 @@ SceneRoots:
   - {fileID: 1837460432}
   - {fileID: 1980327795}
   - {fileID: 1907518794}
+  - {fileID: 295432215}
