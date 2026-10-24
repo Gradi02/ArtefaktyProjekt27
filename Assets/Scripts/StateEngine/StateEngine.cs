@@ -107,7 +107,7 @@ namespace CardRogue.StateEngine
                 }
             }
 
-            // Call at the round boundary, after both player and enemy turns; durations tick once here.
+            // Status durations tick once at the end of their owner's turn.
             foreach (StatusInstance status in snapshot)
             {
                 if (owner.HasStatus(status) && status.TickDuration())

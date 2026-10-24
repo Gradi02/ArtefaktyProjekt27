@@ -4,11 +4,13 @@ using UnityEngine;
 public class RunManager
 {
     private readonly Player _selectedCharacter;
+    private readonly bool _hasSelectedCharacter;
     private readonly StateEngine _stateEngine;
     private BattleSceneController _battleSceneController;
     private bool _isEndingFight;
 
     public Player SelectedCharacter => _selectedCharacter;
+    public bool HasSelectedCharacter => _hasSelectedCharacter;
     public StateEngine StateEngine => _stateEngine;
     public bool IsFightInProgress { get; private set; }
     public bool? LastFightWasWon { get; private set; }
@@ -16,6 +18,7 @@ public class RunManager
     public RunManager(Player selectedCharacter, StateEngine stateEngine)
     {
         _selectedCharacter = selectedCharacter;
+        _hasSelectedCharacter = selectedCharacter != null;
         _stateEngine = stateEngine;
     }
 
@@ -48,6 +51,14 @@ public class RunManager
         if (IsFightInProgress)
         {
             Debug.LogWarning("A fight is already in progress.");
+            return;
+        }
+
+        if (_hasSelectedCharacter && _selectedCharacter == null)
+        {
+            Debug.LogError(
+                "The selected player was destroyed before the fight. " +
+                "Keep the player in a loaded scene or create it from persistent run data.");
             return;
         }
 

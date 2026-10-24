@@ -34,9 +34,11 @@ public sealed class GameManager : MonoBehaviour
     
     public void StartRun()
     {
-        // get selected player character
-        Player selectedCharacter = null;
+        StartRun(null);
+    }
 
+    public void StartRun(Player selectedCharacter)
+    {
         runManager = new RunManager(selectedCharacter, _stateEngine);
         runManager.StartRun();
     }
