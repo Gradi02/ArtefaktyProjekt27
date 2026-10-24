@@ -1,7 +1,10 @@
 using UnityEngine;
 
-public class ShipMovement : MonoBehaviour
+public class UI_menuVisualsController : MonoBehaviour
 {
+    [Header("Element świata")]
+    [SerializeField] private Transform ship;
+
     [Header("Amplituda ruchu")]
     [SerializeField] private float sideMovement = 8f;
     [SerializeField] private float verticalMovement = 5f;
@@ -13,16 +16,21 @@ public class ShipMovement : MonoBehaviour
     [SerializeField] private float movementRotation = 4f;
     [SerializeField] private float rotationSmoothness = 8f;
 
-    private RectTransform rectTransform;
-    private Vector2 startingAnchoredPosition;
+    private Vector3 startingLocalPosition;
     private Quaternion startingRotation;
     private float timeOffset;
 
     private void Awake()
     {
-        rectTransform = GetComponent<RectTransform>();
-        startingAnchoredPosition = rectTransform.anchoredPosition;
-        startingRotation = rectTransform.localRotation;
+        if (ship == null)
+        {
+            Debug.LogError($"{nameof(UI_menuVisualsController)} requires a ship Transform reference.", this);
+            enabled = false;
+            return;
+        }
+
+        startingLocalPosition = ship.localPosition;
+        startingRotation = ship.localRotation;
         timeOffset = Random.Range(0f, Mathf.PI * 2f);
     }
 
@@ -35,9 +43,9 @@ public class ShipMovement : MonoBehaviour
         float sideVelocity = Mathf.Cos(movementTime);
         float targetRotation = sideVelocity * movementRotation;
 
-        rectTransform.anchoredPosition = startingAnchoredPosition + new Vector2(sideOffset, verticalOffset);
-        rectTransform.localRotation = Quaternion.Lerp(
-            rectTransform.localRotation,
+        ship.localPosition = startingLocalPosition + new Vector3(sideOffset, verticalOffset, 0f);
+        ship.localRotation = Quaternion.Lerp(
+            ship.localRotation,
             startingRotation * Quaternion.Euler(0f, 0f, targetRotation),
             Time.unscaledDeltaTime * rotationSmoothness
         );
@@ -45,9 +53,10 @@ public class ShipMovement : MonoBehaviour
 
     private void OnDisable()
     {
-        if (rectTransform != null)
+        if (ship != null)
         {
-            rectTransform.localRotation = startingRotation;
+            ship.localPosition = startingLocalPosition;
+            ship.localRotation = startingRotation;
         }
     }
 }
