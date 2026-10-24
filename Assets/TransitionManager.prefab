@@ -47,14 +47,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SceneTransitionManager
   typewriterSpeed: 0.15
   textHoldDuration: 1
-  imagePopInDuration: 0.8
-  imagePopInDelayStep: 0.25
-  imagePopOutDuration: 0.6
-  imagePopOutDelayStep: 0.15
+  fadeInDuration: 0.4
+  fadeOutDuration: 0.6
   loadingCanvasGroup: {fileID: 5862172108345745367}
   loadingTextUI: {fileID: 7947804360250365674}
-  transitionImages:
-  - {fileID: 6206953331558806047}
 --- !u!1 &5005817192277203183
 GameObject:
   m_ObjectHideFlags: 0
@@ -221,7 +217,7 @@ RectTransform:
   m_GameObject: {fileID: 8059131825867655672}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 6206953331558806047}
@@ -365,7 +361,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 2100000, guid: fa3ea041d75a8d04baec84ffcd38f160, type: 2}
   m_Color: {r: 0, g: 0, b: 0, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}

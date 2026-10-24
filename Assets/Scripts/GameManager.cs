@@ -3,7 +3,7 @@ using CardRogue.StateEngine.Pipeline;
 using UnityEngine;
 
 // main class for managing the game state and flow
-public class GameManager : MonoBehaviour
+public sealed class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
     public RunManager runManager { get; private set; }
@@ -38,7 +38,7 @@ public class GameManager : MonoBehaviour
         Player selectedCharacter = null;
 
         runManager = new RunManager(selectedCharacter, _stateEngine);
-        SceneTransitionManager.Instance.LoadSceneLocal(GameScene.GAME, "RUN!");
+        runManager.StartRun();
     }
 
     [ContextMenu("End Run")]
