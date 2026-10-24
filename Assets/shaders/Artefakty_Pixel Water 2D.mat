@@ -1,0 +1,56 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Artefakty_Pixel Water 2D
+  m_Shader: {fileID: 4800000, guid: 7a62e1b5d3d14e58a78e2f2c6e3f9b11, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _MainTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _EdgeDistortion: 0.05
+    - _FoamAmount: 0.27
+    - _FoamRadius: 0.035
+    - _FoamSharpness: 20
+    - _PixelGrid: 256
+    - _PointRadius: 0.0354
+    - _ShipFoamIntensity: 0.75
+    - _SplineFoamWidth: 0.075
+    - _SurfaceFoamThickness: 0.0176
+    - _SurfaceWaveHeight: 0.0158
+    - _WakeLength: 0.579
+    - _WakeWidth: 0.0772
+    - _WaveScale: 30
+    - _WaveSpeed: 1.15
+    - _WaveStrength: 0.25
+    m_Colors:
+    - _Color: {r: 1, g: 1, b: 1, a: 1}
+    - _DeepColor: {r: 0, g: 0.44435328, b: 0.4716981, a: 1}
+    - _FoamColor: {r: 0.8915094, g: 0.9875033, b: 1, a: 1}
+    - _ShallowColor: {r: 0, g: 0.7911868, b: 1, a: 1}
+    - _ShipFoamColor: {r: 1, g: 1, b: 1, a: 1}
+    - _ShipFoamRadius: {r: 0.15, g: 0.06, b: 0, a: 0}
+    - _ShipUV: {r: 0.5, g: 0.5, b: 0, a: 0}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1
