@@ -8,15 +8,15 @@ using System.Linq;
 /// </summary>
 public class CombatDeck
 {
-    public readonly ReadOnlyCollection<Card> Hand;
-    public readonly ReadOnlyCollection<Card> DrawPile;
-    public readonly ReadOnlyCollection<Card> DiscardPile;
+    public readonly ReadOnlyCollection<CombatCard> Hand;
+    public readonly ReadOnlyCollection<CombatCard> DrawPile;
+    public readonly ReadOnlyCollection<CombatCard> DiscardPile;
     
     public readonly int HandCapacity;
     
-    private readonly List<Card> _hand;
-    private readonly List<Card> _drawPile;
-    private readonly List<Card> _discardPile;
+    private readonly List<CombatCard> _hand;
+    private readonly List<CombatCard> _drawPile;
+    private readonly List<CombatCard> _discardPile;
 
     private static readonly Random Rnd = new();
 
@@ -29,15 +29,18 @@ public class CombatDeck
         
         this.HandCapacity = handCapacity;
         
-        _hand = new List<Card>();
-        _drawPile = new List<Card>();
-        _discardPile = new List<Card>();
+        _hand = new List<CombatCard>();
+        _drawPile = new List<CombatCard>();
+        _discardPile = new List<CombatCard>();
         
         this.Hand = _hand.AsReadOnly();
         this.DrawPile = _drawPile.AsReadOnly();
         this.DiscardPile = _discardPile.AsReadOnly();
 
-        _drawPile.AddRange(collection.Cards);
+        foreach (var card in collection.Cards)
+        {
+            _drawPile.Add(new CombatCard(card));
+        }
         Shuffle(_drawPile);
     }
 
@@ -50,7 +53,7 @@ public class CombatDeck
             return false;
 
         int lastInd = _drawPile.Count - 1;
-        Card targetCard = _drawPile[lastInd];
+        CombatCard targetCard = _drawPile[lastInd];
         _drawPile.RemoveAt(lastInd);
         
         _hand.Add(targetCard);
@@ -77,7 +80,7 @@ public class CombatDeck
         return drawn;
     }
 
-    public bool Discard(Card card)
+    public bool Discard(CombatCard card)
     {
         if (!_hand.Remove(card))
             return false;
@@ -93,7 +96,8 @@ public class CombatDeck
         Shuffle(_drawPile);
     }
 
-    private void Shuffle(List<Card> cards)
+    // TODO: Use other shuffle method
+    private void Shuffle(List<CombatCard> cards)
     {
         int count = cards.Count;
         

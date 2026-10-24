@@ -1,11 +1,11 @@
 ﻿public class CardContext
 {
-    public Card card { get; }
+    public CombatCard card { get; }
     public Enemy target { get; }
 
     public CardContext(
         Enemy target,
-        Card card)
+        CombatCard card)
     {
         this.target = target;
         this.card = card;
