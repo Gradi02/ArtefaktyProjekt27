@@ -29,16 +29,25 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _FoamAmount: 0.437
-    - _FoamSharpness: 3.45
-    - _PixelGrid: 252
-    - _WaveScale: 24.8
+    - _EdgeDistortion: 0.05
+    - _FoamAmount: 0.27
+    - _FoamSharpness: 20
+    - _PixelGrid: 256
+    - _ShipFoamIntensity: 0.93
+    - _SurfaceFoamThickness: 0.0176
+    - _SurfaceWaveHeight: 0.0158
+    - _WakeLength: 0.579
+    - _WakeWidth: 0.0772
+    - _WaveScale: 30
     - _WaveSpeed: 1.15
     - _WaveStrength: 0.25
     m_Colors:
     - _Color: {r: 1, g: 1, b: 1, a: 1}
-    - _DeepColor: {r: 0.02, g: 0.11999995, b: 0.29999998, a: 1}
-    - _FoamColor: {r: 0.65, g: 0.92, b: 0.86, a: 1}
-    - _ShallowColor: {r: 0.11999995, g: 0.54999995, b: 0.72, a: 1}
+    - _DeepColor: {r: 0, g: 0.44435328, b: 0.4716981, a: 1}
+    - _FoamColor: {r: 1, g: 1, b: 1, a: 1}
+    - _ShallowColor: {r: 0, g: 0.7911868, b: 1, a: 1}
+    - _ShipFoamColor: {r: 1, g: 1, b: 1, a: 1}
+    - _ShipFoamRadius: {r: 0.15, g: 0.06, b: 0, a: 0}
+    - _ShipUV: {r: 0.5, g: 0.5, b: 0, a: 0}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
