@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using CardRogue.StateEngine;
+using CardRogue.StateEngine.StatSystem;
 using CardRogue.StateEngine.StatusSystem;
 using UnityEngine;
 
@@ -8,7 +9,10 @@ public class LivingMixin : MonoBehaviour, IStateEntity
 {
     private int _health;
     [SerializeField] private int _maxHealth;
+    [SerializeField, Min(0)] private float _baseAttackPower = 3f;
     private readonly List<StatusInstance> _activeStatuses = new List<StatusInstance>();
+
+    public StatValue AttackPower { get; private set; }
 
     public int health
     {
@@ -116,5 +120,6 @@ public class LivingMixin : MonoBehaviour, IStateEntity
     private void Awake()
     {
         _health = _maxHealth;
+        AttackPower = new StatValue(_baseAttackPower);
     }
 }
