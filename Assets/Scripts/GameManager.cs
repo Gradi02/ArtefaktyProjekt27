@@ -6,7 +6,7 @@ using UnityEngine;
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
-    private RunManager _runManager;
+    public RunManager runManager { get; private set; }
     private StateEngine _stateEngine;
     private EffectPipeline pipeline;
 
@@ -37,14 +37,14 @@ public class GameManager : MonoBehaviour
         // get selected player character
         Player selectedCharacter = null;
 
-        _runManager = new RunManager(selectedCharacter, _stateEngine);
+        runManager = new RunManager(selectedCharacter, _stateEngine);
         SceneTransitionManager.Instance.LoadSceneLocal(GameScene.GAME, "RUN!");
     }
 
     [ContextMenu("End Run")]
     public void EndRun()
     {
-        _runManager = null;
+        runManager = null;
         SceneTransitionManager.Instance.LoadSceneLocal(GameScene.MENU, "Game Over!");
     }
 }

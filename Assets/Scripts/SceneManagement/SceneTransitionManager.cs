@@ -10,7 +10,8 @@ public enum GameScene
 {
     INIT,
     MENU,
-    GAME
+    GAME,
+    BATTLESCENE
 }
 
 public class SceneTransitionManager : MonoBehaviour
