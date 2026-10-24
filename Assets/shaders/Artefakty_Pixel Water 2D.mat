@@ -31,9 +31,11 @@ Material:
     m_Floats:
     - _EdgeDistortion: 0.05
     - _FoamAmount: 0.27
+    - _FoamRadius: 0.035
     - _FoamSharpness: 20
     - _PixelGrid: 256
     - _ShipFoamIntensity: 0.93
+    - _SplineFoamWidth: 0.075
     - _SurfaceFoamThickness: 0.0176
     - _SurfaceWaveHeight: 0.0158
     - _WakeLength: 0.579

@@ -179,7 +179,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::UI_menuVisualsController
   ship: {fileID: 1980327795}
   waterRenderer: {fileID: 1837460431}
-  waterContactOffset: {x: -0.09, y: -0.32, z: 0}
+  foamSpawnOffset: {x: -0.1, y: -0.35, z: 0}
+  foamDriftSpeed: 0.25
+  segmentInterval: 0.2
   sideMovement: 0.5
   verticalMovement: 0.5
   movementSpeed: 1
