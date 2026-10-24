@@ -34,7 +34,8 @@ Material:
     - _FoamRadius: 0.035
     - _FoamSharpness: 20
     - _PixelGrid: 256
-    - _ShipFoamIntensity: 0.93
+    - _PointRadius: 0.0354
+    - _ShipFoamIntensity: 0.75
     - _SplineFoamWidth: 0.075
     - _SurfaceFoamThickness: 0.0176
     - _SurfaceWaveHeight: 0.0158
