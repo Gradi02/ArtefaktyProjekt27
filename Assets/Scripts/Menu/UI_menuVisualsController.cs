@@ -306,6 +306,10 @@ public class UI_menuVisualsController : MonoBehaviour
             ? Random.Range(upperIslandMinScale, upperIslandMaxScale)
             : Random.Range(lowerIslandMinScale, lowerIslandMaxScale);
         island.localScale *= scaleMultiplier;
+        if (upperLane)
+        {
+            PlaceIslandBehindWater(island);
+        }
 
         IslandMovement movement = island.GetComponent<IslandMovement>();
         if (movement == null)
@@ -327,6 +331,21 @@ public class UI_menuVisualsController : MonoBehaviour
         {
             transform = island
         });
+    }
+
+    private void PlaceIslandBehindWater(Transform island)
+    {
+        if (waterRenderer == null)
+        {
+            return;
+        }
+
+        Renderer[] renderers = island.GetComponentsInChildren<Renderer>();
+        foreach (Renderer renderer in renderers)
+        {
+            renderer.sortingLayerID = waterRenderer.sortingLayerID;
+            renderer.sortingOrder = waterRenderer.sortingOrder - 1;
+        }
     }
 
     private void KeepIslandOutsideShipLane(Transform island, float requestedLaneY)

@@ -2,7 +2,7 @@ Shader "Artefakty/Pixel Water 2D"
 {
     Properties
     {
-        [PerRendererData] _MainTex ("Sprite Texture", 2D) = "white" {}
+        [PerRendererData] [NoScaleOffset] _MainTex ("Sprite Texture", 2D) = "white" {}
         [PerRendererData] _Color ("Tint", Color) = (1, 1, 1, 1)
         _ShallowColor ("Shallow Color", Color) = (0.12, 0.55, 0.72, 1)
         _DeepColor ("Deep Color", Color) = (0.02, 0.12, 0.30, 1)
@@ -66,7 +66,6 @@ Shader "Artefakty/Pixel Water 2D"
             #define SPLINE_POINTS 12
 
             CBUFFER_START(UnityPerMaterial)
-                float4 _MainTex_ST;
                 float4 _Color;
                 float4 _ShallowColor;
                 float4 _DeepColor;
@@ -90,7 +89,7 @@ Shader "Artefakty/Pixel Water 2D"
             {
                 Varyings output;
                 output.positionHCS = TransformObjectToHClip(input.positionOS.xyz);
-                output.uv = TRANSFORM_TEX(input.uv, _MainTex);
+                output.uv = input.uv;
                 output.color = input.color * _Color;
                 return output;
             }
