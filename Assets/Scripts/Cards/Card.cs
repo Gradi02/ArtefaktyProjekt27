@@ -1,5 +1,8 @@
 using System;
 
+/// <summary>
+/// Represents a persistent card instance owned by player.
+/// </summary>
 public class Card
 {
     public readonly CardDefinition Definition;

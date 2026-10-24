@@ -1,9 +1,18 @@
-﻿public class CombatCard
+﻿using ANTK.Game.Common;
+
+/// <summary>
+/// Represents a card instance with combat-specific state.
+/// </summary>
+public class CombatCard
 {
-    public readonly Card source;
+    public readonly Card Source;
+
+    public Energy CurrentCost;
 
     public CombatCard(Card source)
     {
-        this.source = source;
+        this.Source = source;
+
+        CurrentCost = source.Definition.baseCost;
     }
 }

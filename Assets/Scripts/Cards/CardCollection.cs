@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 
 /// <summary>
-/// Manages player's collection of owned cards, their instances.
+/// Manages player's collection of persistent cards instances.
 /// </summary>
 public class CardCollection
 {

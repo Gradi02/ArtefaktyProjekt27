@@ -1,4 +1,7 @@
-﻿public class CardContext
+﻿/// <summary>
+/// Information required to execute a card's behavior.
+/// </summary>
+public class CardContext
 {
     public CombatCard card { get; }
     public Enemy target { get; }

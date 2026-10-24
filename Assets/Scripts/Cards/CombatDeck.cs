@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Linq;
 
 /// <summary>
 /// Manages cards during combat. Draw pile, hand and discrarded pile.
