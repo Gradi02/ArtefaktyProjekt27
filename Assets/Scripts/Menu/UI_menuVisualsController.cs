@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class UI_menuVisualsController : MonoBehaviour
@@ -7,6 +8,33 @@ public class UI_menuVisualsController : MonoBehaviour
     [Header("Elementy świata")]
     [SerializeField] private Transform ship;
     [SerializeField] private SpriteRenderer waterRenderer;
+
+    [Header("Wyspy - przeszkody")]
+    [Tooltip("Prefabry wysp losowane podczas pojawiania się przeszkód.")]
+    [SerializeField] private GameObject[] islandPrefabs;
+    [Tooltip("Wysokosc gornego pasa. Ustaw poza pionowym zasiegiem statku.")]
+    [SerializeField] private float upperIslandLaneY = 2.2f;
+    [Tooltip("Wysokosc dolnego pasa. Ustaw poza pionowym zasiegiem statku.")]
+    [SerializeField] private float lowerIslandLaneY = -4.2f;
+    [Tooltip("Predkosc wysp na gornym pasie.")]
+    [SerializeField] private float upperIslandSpeed = 0.5f;
+    [Tooltip("Predkosc wysp na dolnym pasie.")]
+    [SerializeField] private float lowerIslandSpeed = 2.5f;
+    [Tooltip("Minimalna losowa skala wysp na gornym, dalszym pasie.")]
+    [SerializeField] private float upperIslandMinScale = 0.45f;
+    [Tooltip("Maksymalna losowa skala wysp na gornym, dalszym pasie.")]
+    [SerializeField] private float upperIslandMaxScale = 0.7f;
+    [Tooltip("Minimalna losowa skala wysp na dolnym, blizszym pasie.")]
+    [SerializeField] private float lowerIslandMinScale = 0.85f;
+    [Tooltip("Maksymalna losowa skala wysp na dolnym, blizszym pasie.")]
+    [SerializeField] private float lowerIslandMaxScale = 1.15f;
+    [Tooltip("Mniejszy interwal spawnowania wysp na gornym pasie.")]
+    [SerializeField] private float upperIslandSpawnInterval = 1.5f;
+    [Tooltip("Interwal spawnowania wysp na dolnym pasie.")]
+    [SerializeField] private float lowerIslandSpawnInterval = 3f;
+    [SerializeField] private float islandSpawnMargin = 2f;
+    [SerializeField] private float islandShipClearance = 0.25f;
+    [SerializeField] private Transform islandContainer;
 
     [Header("Punkt powstawania piany")]
     [Tooltip("Punkt na rufie/kadłubie gdzie styka się z wodą")]
@@ -32,9 +60,18 @@ public class UI_menuVisualsController : MonoBehaviour
     // Punkty splajnu: x = uv.x, y = uv.y, z = szerokość/waga (0..1)
     private Vector4[] splinePoints = new Vector4[POINT_COUNT];
     private Vector2[] splinePointVelocities = new Vector2[POINT_COUNT];
+    private readonly List<SpawnedIsland> spawnedIslands = new List<SpawnedIsland>();
 
     private MaterialPropertyBlock propBlock;
     private static readonly int SplinePointsID = Shader.PropertyToID("_SplinePoints");
+    private Camera mainCamera;
+    private float upperIslandSpawnTimer;
+    private float lowerIslandSpawnTimer;
+
+    private sealed class SpawnedIsland
+    {
+        public Transform transform;
+    }
 
     private void Awake()
     {
@@ -49,11 +86,18 @@ public class UI_menuVisualsController : MonoBehaviour
         startingRotation = ship.localRotation;
         timeOffset = Random.Range(0f, Mathf.PI * 2f);
         propBlock = new MaterialPropertyBlock();
+        mainCamera = Camera.main;
 
         // Inicjalizacja punktów poza ekranem
         for (int i = 0; i < POINT_COUNT; i++)
         {
             splinePoints[i] = new Vector4(-10f, -10f, 0f, 0f);
+        }
+
+        if (islandPrefabs != null && islandPrefabs.Length > 0)
+        {
+            upperIslandSpawnTimer = upperIslandSpawnInterval;
+            lowerIslandSpawnTimer = lowerIslandSpawnInterval;
         }
     }
 
@@ -74,6 +118,8 @@ public class UI_menuVisualsController : MonoBehaviour
             startingRotation * Quaternion.Euler(0f, 0f, targetRotation),
             dt * rotationSmoothness
         );
+
+        UpdateIslands(dt);
 
         if (waterRenderer == null) return;
 
@@ -111,5 +157,134 @@ public class UI_menuVisualsController : MonoBehaviour
         waterRenderer.GetPropertyBlock(propBlock);
         propBlock.SetVectorArray(SplinePointsID, splinePoints);
         waterRenderer.SetPropertyBlock(propBlock);
+    }
+
+    private void UpdateIslands(float dt)
+    {
+        if (mainCamera == null)
+        {
+            mainCamera = Camera.main;
+        }
+
+        if (mainCamera == null || islandPrefabs == null || islandPrefabs.Length == 0)
+        {
+            return;
+        }
+
+        float leftEdge = GetCameraWorldX(0f) - islandSpawnMargin;
+        for (int i = spawnedIslands.Count - 1; i >= 0; i--)
+        {
+            SpawnedIsland spawnedIsland = spawnedIslands[i];
+            Transform island = spawnedIsland.transform;
+            if (island == null)
+            {
+                spawnedIslands.RemoveAt(i);
+                continue;
+            }
+
+            if (GetRendererBounds(island).max.x < leftEdge)
+            {
+                Destroy(island.gameObject);
+                spawnedIslands.RemoveAt(i);
+            }
+        }
+
+        upperIslandSpawnTimer += dt;
+        if (upperIslandSpawnTimer >= upperIslandSpawnInterval)
+        {
+            upperIslandSpawnTimer -= upperIslandSpawnInterval;
+            SpawnIsland(true);
+        }
+
+        lowerIslandSpawnTimer += dt;
+        if (lowerIslandSpawnTimer >= lowerIslandSpawnInterval)
+        {
+            lowerIslandSpawnTimer -= lowerIslandSpawnInterval;
+            SpawnIsland(false);
+        }
+    }
+
+    private void SpawnIsland(bool upperLane)
+    {
+        GameObject prefab = islandPrefabs[Random.Range(0, islandPrefabs.Length)];
+        if (prefab == null)
+        {
+            Debug.LogError($"{nameof(UI_menuVisualsController)} contains an empty island prefab reference.", this);
+            return;
+        }
+
+        float spawnX = GetCameraWorldX(1f) + islandSpawnMargin;
+        float laneY = upperLane ? upperIslandLaneY : lowerIslandLaneY;
+        Vector3 spawnPosition = new Vector3(spawnX, laneY, 0f);
+        Transform island = Instantiate(prefab, spawnPosition, Quaternion.identity, islandContainer).transform;
+        float scaleMultiplier = upperLane
+            ? Random.Range(upperIslandMinScale, upperIslandMaxScale)
+            : Random.Range(lowerIslandMinScale, lowerIslandMaxScale);
+        island.localScale *= scaleMultiplier;
+
+        IslandMovement movement = island.GetComponent<IslandMovement>();
+        if (movement == null)
+        {
+            movement = island.gameObject.AddComponent<IslandMovement>();
+        }
+
+        float scaleSpeedMultiplier = Mathf.InverseLerp(
+            upperIslandMinScale,
+            lowerIslandMaxScale,
+            scaleMultiplier
+        );
+        float baseSpeed = upperLane ? upperIslandSpeed : lowerIslandSpeed;
+        float movementSpeed = baseSpeed * Mathf.Lerp(0.8f, 1.2f, scaleSpeedMultiplier);
+        movement.Initialize(movementSpeed);
+
+        KeepIslandOutsideShipLane(island, laneY);
+        spawnedIslands.Add(new SpawnedIsland
+        {
+            transform = island
+        });
+    }
+
+    private void KeepIslandOutsideShipLane(Transform island, float requestedLaneY)
+    {
+        Bounds shipBounds = GetRendererBounds(ship);
+        shipBounds.Expand(new Vector3(0f, verticalMovement * 2f, 0f));
+
+        Bounds islandBounds = GetRendererBounds(island);
+        if (!shipBounds.Intersects(islandBounds))
+        {
+            return;
+        }
+
+        float direction = requestedLaneY >= ship.position.y ? 1f : -1f;
+        float requiredCenterY = direction > 0f
+            ? shipBounds.max.y + islandBounds.extents.y + islandShipClearance
+            : shipBounds.min.y - islandBounds.extents.y - islandShipClearance;
+
+        Vector3 position = island.position;
+        position.y += requiredCenterY - islandBounds.center.y;
+        island.position = position;
+    }
+
+    private float GetCameraWorldX(float viewportX)
+    {
+        float distanceToWorldPlane = -mainCamera.transform.position.z;
+        return mainCamera.ViewportToWorldPoint(new Vector3(viewportX, 0.5f, distanceToWorldPlane)).x;
+    }
+
+    private static Bounds GetRendererBounds(Transform target)
+    {
+        Renderer[] renderers = target.GetComponentsInChildren<Renderer>();
+        if (renderers.Length == 0)
+        {
+            return new Bounds(target.position, Vector3.zero);
+        }
+
+        Bounds bounds = renderers[0].bounds;
+        for (int i = 1; i < renderers.Length; i++)
+        {
+            bounds.Encapsulate(renderers[i].bounds);
+        }
+
+        return bounds;
     }
 }
