@@ -15,8 +15,8 @@ public class UI_menuVisualsController : MonoBehaviour
     [Header("Fizyka śladu (Splajnu)")]
     [Tooltip("Prędkość spływania wody do tyłu (w lewo)")]
     [SerializeField] private float foamDriftSpeed = 0.12f;
-    [Tooltip("Co ile sekund dodajemy nowy segment")]
-    [SerializeField] private float segmentInterval = 0.08f;
+    [Tooltip("Jak szybko każdy punkt podąża za poprzednim punktem")]
+    [SerializeField] private float foamPointFollowTime = 0.18f;
 
     [Header("Ruch statku")]
     [SerializeField] private float sideMovement = 8f;
@@ -31,7 +31,7 @@ public class UI_menuVisualsController : MonoBehaviour
 
     // Punkty splajnu: x = uv.x, y = uv.y, z = szerokość/waga (0..1)
     private Vector4[] splinePoints = new Vector4[POINT_COUNT];
-    private float spawnTimer;
+    private Vector2[] splinePointVelocities = new Vector2[POINT_COUNT];
 
     private MaterialPropertyBlock propBlock;
     private static readonly int SplinePointsID = Shader.PropertyToID("_SplinePoints");
@@ -85,27 +85,29 @@ public class UI_menuVisualsController : MonoBehaviour
         // 2. Punkt 0 to zawsze aktualny punkt styku statku z wodą
         splinePoints[0] = new Vector4(currentUvX, currentUvY, 1.0f, 0f);
 
-        // 3. Spływanie w tył wszystkich starszych punktów splajnu
+        // 3. Punkty płynnie podążają za poprzednim punktem.
+        // Dzięki temu ogon nie teleportuje się przy tworzeniu kolejnego segmentu.
         for (int i = 1; i < POINT_COUNT; i++)
         {
-            splinePoints[i].x -= foamDriftSpeed * dt;
+            Vector2 currentPosition = new Vector2(splinePoints[i].x, splinePoints[i].y);
+            currentPosition.x -= foamDriftSpeed * dt;
+
+            Vector2 targetPosition = new Vector2(splinePoints[i - 1].x, splinePoints[i - 1].y);
+            currentPosition = Vector2.SmoothDamp(
+                currentPosition,
+                targetPosition,
+                ref splinePointVelocities[i],
+                foamPointFollowTime,
+                Mathf.Infinity,
+                dt
+            );
+
+            splinePoints[i].x = currentPosition.x;
+            splinePoints[i].y = currentPosition.y;
+            splinePoints[i].z = 1.0f - ((float)i / POINT_COUNT);
         }
 
-        // 4. Cykliczne przesuwanie łańcucha (tworzenie nowego segmentu splajnu)
-        spawnTimer += dt;
-        if (spawnTimer >= segmentInterval)
-        {
-            spawnTimer = 0f;
-            // Przesuwamy węzły w tył (od ogona do głowy)
-            for (int i = POINT_COUNT - 1; i > 0; i--)
-            {
-                splinePoints[i] = splinePoints[i - 1];
-                // Waga/życie zanika z każdym segmentem dalej
-                splinePoints[i].z = 1.0f - ((float)i / POINT_COUNT);
-            }
-        }
-
-        // 5. Wysłanie punktów splajnu do shadera
+        // 4. Wysłanie punktów splajnu do shadera
         waterRenderer.GetPropertyBlock(propBlock);
         propBlock.SetVectorArray(SplinePointsID, splinePoints);
         waterRenderer.SetPropertyBlock(propBlock);

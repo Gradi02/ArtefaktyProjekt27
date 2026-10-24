@@ -47,7 +47,7 @@ Material:
     m_Colors:
     - _Color: {r: 1, g: 1, b: 1, a: 1}
     - _DeepColor: {r: 0, g: 0.44435328, b: 0.4716981, a: 1}
-    - _FoamColor: {r: 1, g: 1, b: 1, a: 1}
+    - _FoamColor: {r: 0.8915094, g: 0.9875033, b: 1, a: 1}
     - _ShallowColor: {r: 0, g: 0.7911868, b: 1, a: 1}
     - _ShipFoamColor: {r: 1, g: 1, b: 1, a: 1}
     - _ShipFoamRadius: {r: 0.15, g: 0.06, b: 0, a: 0}

@@ -155,9 +155,9 @@ Shader "Artefakty/Pixel Water 2D"
 
                 // Piana tla
                 float waveLine = frac(pixelUv.y * (_WaveScale * 0.7) + waves * 0.35 - time * 0.45);
-                float crest = 1.0 - smoothstep(0.08, 0.22, abs(waveLine - 0.5));
+                float crest = 1.0 - step(0.14, abs(waveLine - 0.5));
                 float foamNoise = Noise(pixelUv * (_WaveScale * 1.6) + float2(time, -time * 0.65));
-                float ambientFoam = saturate((crest * foamNoise - (1.0 - _FoamAmount)) * _FoamSharpness);
+                float ambientFoam = step(1.0 - _FoamAmount, crest * foamNoise);
 
                 float edgeFoam = step(surfaceLine - _SurfaceFoamThickness, pixelUv.y);
                 ambientFoam = max(ambientFoam, edgeFoam);
@@ -191,12 +191,19 @@ Shader "Artefakty/Pixel Water 2D"
                 }
 
                 float trailNoise = Noise(pixelUv * (_PixelGrid * 0.25) + float2(time * 2.0, 0));
-                float shipFoam = saturate((splineFoamMask * trailNoise * _ShipFoamIntensity) - 0.12) * _FoamSharpness;
+                float shipFoam = step(0.12, splineFoamMask * trailNoise * _ShipFoamIntensity);
 
-                // Laczenie kolorow
+                // Foam jest maska binarna: piksel ma jeden kolor bez mieszania krawedzi.
                 half3 finalColor = waterBase;
-                finalColor = lerp(finalColor, _FoamColor.rgb, ambientFoam);
-                finalColor = lerp(finalColor, _ShipFoamColor.rgb, shipFoam);
+                if (ambientFoam > 0.5)
+                {
+                    finalColor = _FoamColor.rgb;
+                }
+
+                if (shipFoam > 0.5)
+                {
+                    finalColor = _ShipFoamColor.rgb;
+                }
 
                 half finalAlpha = source.a * input.color.a * surfaceMask;
                 return half4(finalColor, finalAlpha);
