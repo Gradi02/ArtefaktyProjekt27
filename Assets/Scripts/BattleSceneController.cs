@@ -1,5 +1,5 @@
-using CardRogue.StateEngine;
-using CardRogue.StateEngine.StatusSystem;
+using ANTK.Game.StateEngine;
+using ANTK.Game.StateEngine.StatusSystem;
 using UnityEngine;
 
 public sealed class BattleSceneController : MonoBehaviour
@@ -120,7 +120,7 @@ public sealed class BattleSceneController : MonoBehaviour
 
     private static string GetStatuses(LivingMixin entity)
     {
-        System.Collections.Generic.IReadOnlyList<CardRogue.StateEngine.StatusSystem.StatusInstance> statuses =
+        System.Collections.Generic.IReadOnlyList<ANTK.Game.StateEngine.StatusSystem.StatusInstance> statuses =
             ((IStateEntity)entity).ActiveStatuses;
         if (statuses.Count == 0)
         {
@@ -128,7 +128,7 @@ public sealed class BattleSceneController : MonoBehaviour
         }
 
         string result = string.Empty;
-        foreach (CardRogue.StateEngine.StatusSystem.StatusInstance status in statuses)
+        foreach (ANTK.Game.StateEngine.StatusSystem.StatusInstance status in statuses)
         {
             if (result.Length > 0)
             {

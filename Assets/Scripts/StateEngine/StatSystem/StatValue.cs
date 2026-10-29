@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace CardRogue.StateEngine.StatSystem
+namespace ANTK.Game.StateEngine.StatSystem
 {
     public sealed class StatValue
     {

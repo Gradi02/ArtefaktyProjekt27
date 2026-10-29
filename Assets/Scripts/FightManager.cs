@@ -1,6 +1,6 @@
 using System;
-using CardRogue.StateEngine;
-using CardRogue.StateEngine.StatusSystem;
+using ANTK.Game.StateEngine;
+using ANTK.Game.StateEngine.StatusSystem;
 using UnityEngine;
 
 public sealed class FightManager : IDisposable

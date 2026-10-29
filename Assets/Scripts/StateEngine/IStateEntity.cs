@@ -1,7 +1,7 @@
 using System.Collections.Generic;
-using CardRogue.StateEngine.StatusSystem;
+using ANTK.Game.StateEngine.StatusSystem;
 
-namespace CardRogue.StateEngine
+namespace ANTK.Game.StateEngine
 {
     public interface IStateEntity
     {

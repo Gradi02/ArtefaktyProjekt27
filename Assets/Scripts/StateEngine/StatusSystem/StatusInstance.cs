@@ -1,6 +1,6 @@
 using System;
 
-namespace CardRogue.StateEngine.StatusSystem
+namespace ANTK.Game.StateEngine.StatusSystem
 {
     public sealed class StatusInstance
     {

@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace CardRogue.StateEngine.StatusSystem
+namespace ANTK.Game.StateEngine.StatusSystem
 {
     public enum StatusType
     {
