@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using CardRogue.StateEngine.StatSystem;
+using ANTK.Game.StateEngine.StatSystem;
 
-namespace CardRogue.StateEngine.Pipeline
+namespace ANTK.Game.StateEngine.Pipeline
 {
     public enum EffectPhase
     {

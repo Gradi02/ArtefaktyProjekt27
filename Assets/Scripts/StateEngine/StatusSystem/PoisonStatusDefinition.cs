@@ -1,7 +1,7 @@
-using CardRogue.StateEngine.Pipeline;
+using ANTK.Game.StateEngine.Pipeline;
 using UnityEngine;
 
-namespace CardRogue.StateEngine.StatusSystem
+namespace ANTK.Game.StateEngine.StatusSystem
 {
     public sealed class PoisonStatusDefinition : StatusDefinition, IOnTurnEnd
     {

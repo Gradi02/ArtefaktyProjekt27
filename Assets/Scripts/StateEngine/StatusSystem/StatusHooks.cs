@@ -1,6 +1,6 @@
-using CardRogue.StateEngine.Pipeline;
+using ANTK.Game.StateEngine.Pipeline;
 
-namespace CardRogue.StateEngine.StatusSystem
+namespace ANTK.Game.StateEngine.StatusSystem
 {
     public interface IOnTurnStart
     {

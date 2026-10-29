@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
-using CardRogue.StateEngine.Pipeline;
-using CardRogue.StateEngine.StatusSystem;
+using ANTK.Game.StateEngine.Pipeline;
+using ANTK.Game.StateEngine.StatusSystem;
 
-namespace CardRogue.StateEngine
+namespace ANTK.Game.StateEngine
 {
     public sealed class StateEngine
     {

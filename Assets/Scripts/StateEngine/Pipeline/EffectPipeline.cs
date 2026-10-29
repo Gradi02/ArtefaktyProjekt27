@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
-using CardRogue.StateEngine.StatSystem;
-using CardRogue.StateEngine.StatusSystem;
+using ANTK.Game.StateEngine.StatSystem;
+using ANTK.Game.StateEngine.StatusSystem;
 
-namespace CardRogue.StateEngine.Pipeline
+namespace ANTK.Game.StateEngine.Pipeline
 {
     public sealed class EffectPipeline
     {

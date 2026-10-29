@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using CardRogue.StateEngine;
-using CardRogue.StateEngine.StatSystem;
-using CardRogue.StateEngine.StatusSystem;
+using ANTK.Game.StateEngine;
+using ANTK.Game.StateEngine.StatSystem;
+using ANTK.Game.StateEngine.StatusSystem;
 using UnityEngine;
 
 public class LivingMixin : MonoBehaviour, IStateEntity
