@@ -1,5 +1,7 @@
 using ANTK.Game.StateEngine;
 using ANTK.Game.StateEngine.StatusSystem;
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 public sealed class BattleSceneController : MonoBehaviour
@@ -10,13 +12,46 @@ public sealed class BattleSceneController : MonoBehaviour
 
     private RunManager _runManager;
     private FightManager _fightManager;
+    private readonly PresentationEventQueue _presentationQueue = new PresentationEventQueue();
+    private PresentationDirector _presentationDirector;
+    private PresentationPlayer _presentationPlayer;
     private FightEndedEventArgs _pendingFightEnd;
     private bool _isCompletingFight;
 
     public event System.EventHandler<FightEndedEventArgs> FightEnded;
+    public event Action<PresentationEventQueue> PresentationQueueUpdated;
+
+    public PresentationEventQueue PresentationQueue => _presentationQueue;
+
+    public void AttachPresentationPlayer(PresentationPlayer presentationPlayer)
+    {
+        if (presentationPlayer == null)
+        {
+            throw new ArgumentNullException(nameof(presentationPlayer));
+        }
+        if (!ReferenceEquals(presentationPlayer.Queue, _presentationQueue))
+        {
+            throw new ArgumentException(
+                "The PresentationPlayer must consume this battle's presentation queue.",
+                nameof(presentationPlayer));
+        }
+        if (_presentationPlayer != null)
+        {
+            throw new InvalidOperationException("A presentation player is already attached.");
+        }
+
+        _presentationPlayer = presentationPlayer;
+        _presentationPlayer.SnapshotPlaybackCompleted += OnSnapshotPlaybackCompleted;
+        if (!_presentationQueue.IsEmpty)
+        {
+            StartPresentationPlayback();
+        }
+    }
 
     private void Start()
     {
+        EnsurePresentationDirector();
+
         GameManager gameManager = GameManager.Instance;
         if (gameManager == null || gameManager.runManager == null)
         {
@@ -58,6 +93,7 @@ public sealed class BattleSceneController : MonoBehaviour
                 runManager.StateEngine,
                 poisonDefinition);
             _fightManager.FightEnded += OnFightEnded;
+            _fightManager.ActionSnapshotCreated += OnActionSnapshotCreated;
             _fightManager.StartFight();
         }
     }
@@ -67,7 +103,12 @@ public sealed class BattleSceneController : MonoBehaviour
         if (_fightManager != null)
         {
             _fightManager.FightEnded -= OnFightEnded;
+            _fightManager.ActionSnapshotCreated -= OnActionSnapshotCreated;
             _fightManager.Dispose();
+        }
+        if (_presentationPlayer != null)
+        {
+            _presentationPlayer.SnapshotPlaybackCompleted -= OnSnapshotPlaybackCompleted;
         }
     }
 
@@ -95,6 +136,10 @@ public sealed class BattleSceneController : MonoBehaviour
         if (_fightManager.IsFightOver)
         {
             GUILayout.Label("Fight ended. Waiting for presentation to finish.");
+        }
+        else if (_fightManager.IsPresentationPending)
+        {
+            GUILayout.Label("Waiting for action presentation to finish.");
         }
         else if (_fightManager.IsTurnStarted && ReferenceEquals(_fightManager.CurrentActor, _fightManager.PlayerState))
         {
@@ -171,6 +216,66 @@ public sealed class BattleSceneController : MonoBehaviour
         }
 
         _isCompletingFight = _runManager.EndFight(this, _pendingFightEnd.WasWon);
+    }
+
+    public bool CompleteActionPresentation(string snapshotId)
+    {
+        if (_fightManager == null)
+        {
+            Debug.LogError("Fight manager is not available.", this);
+            return false;
+        }
+        if (_presentationQueue.HasNextForSnapshot(snapshotId))
+        {
+            Debug.LogWarning($"Snapshot '{snapshotId}' still has queued presentation events.", this);
+            return false;
+        }
+
+        return _fightManager.AcknowledgePresentationCompleted(snapshotId);
+    }
+
+    private void OnActionSnapshotCreated(object sender, GameActionSnapshotEventArgs eventArgs)
+    {
+        _presentationDirector.ProcessSnapshot(eventArgs.Snapshot);
+        PresentationQueueUpdated?.Invoke(_presentationQueue);
+        if (_presentationPlayer == null)
+        {
+            Debug.LogWarning(
+                "No PresentationPlayer is attached; gameplay remains locked until the snapshot is played.",
+                this);
+            return;
+        }
+
+        StartPresentationPlayback();
+    }
+
+    private async void StartPresentationPlayback()
+    {
+        try
+        {
+            await _presentationPlayer.PlayQueuedAsync();
+        }
+        catch (Exception exception)
+        {
+            Debug.LogException(exception, this);
+        }
+    }
+
+    private void OnSnapshotPlaybackCompleted(string snapshotId)
+    {
+        CompleteActionPresentation(snapshotId);
+    }
+
+    private void EnsurePresentationDirector()
+    {
+        if (_presentationDirector == null)
+        {
+            List<IActionPresentationRule> rules = new List<IActionPresentationRule>
+            {
+                new ConsecutiveCardDrawsRule()
+            };
+            _presentationDirector = new PresentationDirector(_presentationQueue, rules);
+        }
     }
 
     private void OnFightEnded(object sender, FightEndedEventArgs eventArgs)

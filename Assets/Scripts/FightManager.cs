@@ -1,4 +1,5 @@
 using System;
+using ANTK.Game.StateEngine.Actions;
 using ANTK.Game.StateEngine;
 using ANTK.Game.StateEngine.StatusSystem;
 using UnityEngine;
@@ -9,7 +10,10 @@ public sealed class FightManager : IDisposable
     private readonly LivingMixin _enemy;
     private readonly StateEngine _stateEngine;
     private readonly PoisonStatusDefinition _poisonDefinition;
+    private readonly ActionSnapshotRecorder _actionRecorder = new ActionSnapshotRecorder();
     private bool _isFightOver;
+    private bool _isExecutingCommand;
+    private string _pendingSnapshotId;
 
     public LivingMixin CurrentActor { get; private set; }
     public LivingMixin CurrentOpponent => ReferenceEquals(CurrentActor, _player) ? _enemy : _player;
@@ -17,7 +21,9 @@ public sealed class FightManager : IDisposable
     public LivingMixin EnemyState => _enemy;
     public bool IsTurnStarted { get; private set; }
     public bool IsFightOver => _isFightOver;
+    public bool IsPresentationPending { get; private set; }
     public event EventHandler<FightEndedEventArgs> FightEnded;
+    public event EventHandler<GameActionSnapshotEventArgs> ActionSnapshotCreated;
 
     public FightManager(
         LivingMixin player,
@@ -53,58 +59,54 @@ public sealed class FightManager : IDisposable
         CurrentActor = _player;
         _player.onDeath += OnEntityDeath;
         _enemy.onDeath += OnEntityDeath;
+        _stateEngine.ActionExecuted += OnActionExecuted;
     }
 
     public void StartFight()
     {
-        if (_isFightOver || IsTurnStarted)
+        if (_isFightOver || IsTurnStarted || IsPresentationPending)
         {
             return;
         }
 
-        if (TryFinishFight())
+        ExecuteCommand("fight.start", () =>
         {
-            return;
-        }
-
-        BeginTurn();
+            if (!TryFinishFight())
+            {
+                BeginTurn();
+            }
+        });
     }
 
     public void EndPlayerTurn()
     {
-        if (_isFightOver || !IsTurnStarted || !ReferenceEquals(CurrentActor, _player))
+        if (_isFightOver || IsPresentationPending ||
+            !IsTurnStarted || !ReferenceEquals(CurrentActor, _player))
         {
-            Debug.LogWarning("Only the active player's turn can be ended manually.");
+            Debug.LogWarning("The player's turn cannot be ended in the current state.");
             return;
         }
 
-        EndCurrentTurn();
-        if (_isFightOver)
+        ExecuteCommand("player.end-turn", ResolveEndPlayerTurn);
+    }
+
+    public bool TryExecutePlayerCommand(string commandTypeId, Action command)
+    {
+        if (string.IsNullOrWhiteSpace(commandTypeId))
         {
-            return;
+            throw new ArgumentException("Command type ID must not be empty.", nameof(commandTypeId));
+        }
+        if (command == null)
+        {
+            throw new ArgumentNullException(nameof(command));
+        }
+        if (!RequirePlayerTurn())
+        {
+            return false;
         }
 
-        CurrentActor = _enemy;
-        BeginTurn();
-        if (_isFightOver)
-        {
-            return;
-        }
-
-        PerformEnemyAction();
-        if (_isFightOver)
-        {
-            return;
-        }
-
-        EndCurrentTurn();
-        if (_isFightOver)
-        {
-            return;
-        }
-
-        CurrentActor = _player;
-        BeginTurn();
+        ExecuteCommand(commandTypeId, command);
+        return true;
     }
 
     public void ApplyPoisonToOpponent()
@@ -114,14 +116,17 @@ public sealed class FightManager : IDisposable
             return;
         }
 
-        _stateEngine.ApplyStatus(
-            CurrentOpponent,
-            _poisonDefinition,
-            durationTurns: _poisonDefinition.DurationTurns);
-        Debug.Log(
-            $"Poison applied to {CurrentOpponent.name}. " +
-            $"Stacks: {GetPoisonStacks(CurrentOpponent)}, " +
-            $"duration: {_poisonDefinition.DurationTurns} owner turns.");
+        ExecuteCommand("player.apply-poison", () =>
+        {
+            _stateEngine.ApplyStatus(
+                CurrentOpponent,
+                _poisonDefinition,
+                durationTurns: _poisonDefinition.DurationTurns);
+            Debug.Log(
+                $"Poison applied to {CurrentOpponent.name}. " +
+                $"Stacks: {GetPoisonStacks(CurrentOpponent)}, " +
+                $"duration: {_poisonDefinition.DurationTurns} owner turns.");
+        });
     }
 
     public void DamageOpponent()
@@ -131,15 +136,35 @@ public sealed class FightManager : IDisposable
             return;
         }
 
-        float damage = CurrentActor.AttackPower.CalculateValue();
-        _stateEngine.ProcessDamage(CurrentActor, CurrentOpponent, damage);
-        Debug.Log(
-            $"{CurrentActor.name} dealt {damage} damage to {CurrentOpponent.name}. " +
-            $"HP: {CurrentOpponent.health}/{CurrentOpponent.maxHealth}.");
+        ExecuteCommand("player.attack", () =>
+        {
+            float damage = CurrentActor.AttackPower.CalculateValue();
+            _stateEngine.ProcessDamage(CurrentActor, CurrentOpponent, damage, "player.attack");
+            Debug.Log(
+                $"{CurrentActor.name} dealt {damage} damage to {CurrentOpponent.name}. " +
+                $"HP: {CurrentOpponent.health}/{CurrentOpponent.maxHealth}.");
+        });
+    }
+
+    public bool AcknowledgePresentationCompleted(string snapshotId)
+    {
+        if (!IsPresentationPending || snapshotId != _pendingSnapshotId)
+        {
+            Debug.LogWarning($"Snapshot '{snapshotId}' is not the active presentation.");
+            return false;
+        }
+
+        _pendingSnapshotId = null;
+        IsPresentationPending = false;
+        return true;
     }
 
     public void Dispose()
     {
+        if (_stateEngine != null)
+        {
+            _stateEngine.ActionExecuted -= OnActionExecuted;
+        }
         if (_player != null)
         {
             _player.onDeath -= OnEntityDeath;
@@ -184,7 +209,7 @@ public sealed class FightManager : IDisposable
         }
 
         float damage = _enemy.AttackPower.CalculateValue();
-        _stateEngine.ProcessDamage(_enemy, _player, damage);
+        _stateEngine.ProcessDamage(_enemy, _player, damage, "enemy.attack");
         Debug.Log(
             $"{_enemy.name} dealt {damage} damage to {_player.name}. " +
             $"HP: {_player.health}/{_player.maxHealth}.");
@@ -193,13 +218,76 @@ public sealed class FightManager : IDisposable
 
     private bool RequirePlayerTurn()
     {
-        if (_isFightOver || !IsTurnStarted || !ReferenceEquals(CurrentActor, _player))
+        if (_isFightOver || IsPresentationPending ||
+            !IsTurnStarted || !ReferenceEquals(CurrentActor, _player))
         {
             Debug.LogWarning("This action is only available during the player's turn.");
             return false;
         }
 
         return true;
+    }
+
+    private void ResolveEndPlayerTurn()
+    {
+        EndCurrentTurn();
+        if (_isFightOver)
+        {
+            return;
+        }
+
+        CurrentActor = _enemy;
+        BeginTurn();
+        if (_isFightOver)
+        {
+            return;
+        }
+
+        PerformEnemyAction();
+        if (_isFightOver)
+        {
+            return;
+        }
+
+        EndCurrentTurn();
+        if (_isFightOver)
+        {
+            return;
+        }
+
+        CurrentActor = _player;
+        BeginTurn();
+    }
+
+    private void ExecuteCommand(string commandTypeId, Action command)
+    {
+        if (_isExecutingCommand)
+        {
+            throw new InvalidOperationException("Fight commands cannot be nested.");
+        }
+
+        _isExecutingCommand = true;
+        _actionRecorder.BeginCommand(commandTypeId);
+        try
+        {
+            command();
+        }
+        finally
+        {
+            _isExecutingCommand = false;
+            GameActionSnapshot snapshot = _actionRecorder.CompleteCommand();
+            if (snapshot != null)
+            {
+                _pendingSnapshotId = snapshot.SnapshotId;
+                IsPresentationPending = true;
+                ActionSnapshotCreated?.Invoke(this, new GameActionSnapshotEventArgs(snapshot));
+            }
+        }
+    }
+
+    private void OnActionExecuted(GameAction action)
+    {
+        _actionRecorder.Record(action);
     }
 
     private int GetPoisonStacks(LivingMixin target)

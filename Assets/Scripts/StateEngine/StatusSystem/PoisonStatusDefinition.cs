@@ -13,8 +13,7 @@ namespace ANTK.Game.StateEngine.StatusSystem
         public void OnTurnEnd(StateEngine engine, IStateEntity owner, StatusInstance status)
         {
             int damage = damagePerStack * status.Stacks;
-            engine.ProcessDamage(owner, owner, damage);
-            Debug.Log($"Poison deals {damage} damage to its owner.");
+            engine.ProcessDamage(owner, owner, damage, "status.poison");
         }
     }
 }
