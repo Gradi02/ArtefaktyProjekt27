@@ -1,4 +1,14 @@
 {
   "name": "ANTK.Game.StateEngine",
-  "rootNamespace": "ANTK.Game.StateEngine"
+  "rootNamespace": "ANTK.Game.StateEngine",
+  "references": [],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
 }

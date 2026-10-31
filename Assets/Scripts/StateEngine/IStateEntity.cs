@@ -5,6 +5,7 @@ namespace ANTK.Game.StateEngine
 {
     public interface IStateEntity
     {
+        string EntityId { get; }
         int Health { get; }
         IReadOnlyList<StatusInstance> ActiveStatuses { get; }
 

@@ -7,6 +7,7 @@ using UnityEngine;
 
 public class LivingMixin : MonoBehaviour, IStateEntity
 {
+    private readonly string _entityId = Guid.NewGuid().ToString("N");
     private int _health;
     [SerializeField] private int _maxHealth;
     [SerializeField, Min(0)] private float _baseAttackPower = 3f;
@@ -25,6 +26,7 @@ public class LivingMixin : MonoBehaviour, IStateEntity
     public bool isDead => !isAlive;
 
     int IStateEntity.Health => health;
+    string IStateEntity.EntityId => _entityId;
     IReadOnlyList<StatusInstance> IStateEntity.ActiveStatuses => _activeStatuses;
 
     public event EventHandler<HealthChangeEventArgs> onHeal;
