@@ -105,10 +105,52 @@ public sealed class PresentationDirector
             GameAction action = snapshot.Actions[actionIndex];
             presentationEvent = new PresentationEvent(
                 snapshot.SnapshotId,
-                action.TypeId,
+                GetEventType(action),
                 new[] { action });
             consumedActionCount = 1;
             return true;
+        }
+
+        private static PresentationEventType GetEventType(GameAction action)
+        {
+            if (action is TurnStartedAction)
+            {
+                return PresentationEventType.TurnStarted;
+            }
+            if (action is TurnEndedAction)
+            {
+                return PresentationEventType.TurnEnded;
+            }
+            if (action is StatusAppliedAction)
+            {
+                return PresentationEventType.StatusApplied;
+            }
+            if (action is StatusRemovedAction)
+            {
+                return PresentationEventType.StatusRemoved;
+            }
+            if (action is DamageResolvedAction)
+            {
+                return PresentationEventType.DamageResolved;
+            }
+            if (action is CardDrawnAction)
+            {
+                return PresentationEventType.CardsDrawn;
+            }
+            if (action is OpponentKilledAction)
+            {
+                return PresentationEventType.OpponentKilled;
+            }
+            if (action is FightWonAction)
+            {
+                return PresentationEventType.FightWon;
+            }
+            if (action is PlayerDiedAction)
+            {
+                return PresentationEventType.PlayerDied;
+            }
+
+            return PresentationEventType.GenericAction;
         }
     }
 }
@@ -145,7 +187,7 @@ public sealed class ConsecutiveCardDrawsRule : IActionPresentationRule
 
         presentationEvent = new PresentationEvent(
             snapshot.SnapshotId,
-            "cards.drawn",
+            PresentationEventType.CardsDrawn,
             groupedActions);
         consumedActionCount = groupedActions.Count;
         return true;

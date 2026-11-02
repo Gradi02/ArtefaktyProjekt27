@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using ANTK.Game.StateEngine.Actions;
 using ANTK.Game.StateEngine;
 using ANTK.Game.StateEngine.StatusSystem;
@@ -11,6 +12,7 @@ public sealed class FightManager : IDisposable
     private readonly StateEngine _stateEngine;
     private readonly PoisonStatusDefinition _poisonDefinition;
     private readonly ActionSnapshotRecorder _actionRecorder = new ActionSnapshotRecorder();
+    private readonly List<GameAction> _pendingOutcomeActions = new List<GameAction>();
     private bool _isFightOver;
     private bool _isExecutingCommand;
     private string _pendingSnapshotId;
@@ -275,6 +277,12 @@ public sealed class FightManager : IDisposable
         finally
         {
             _isExecutingCommand = false;
+            foreach (GameAction action in _pendingOutcomeActions)
+            {
+                _stateEngine.RecordExecutedAction(action);
+            }
+            _pendingOutcomeActions.Clear();
+
             GameActionSnapshot snapshot = _actionRecorder.CompleteCommand();
             if (snapshot != null)
             {
@@ -346,8 +354,26 @@ public sealed class FightManager : IDisposable
             return;
         }
 
+        if (!_isExecutingCommand)
+        {
+            ExecuteCommand("fight.entity-defeated", () => FinishFight(wasWon, defeated));
+            return;
+        }
+
         _isFightOver = true;
         IsTurnStarted = false;
+        IStateEntity defeatedState = defeated;
+        if (wasWon)
+        {
+            _pendingOutcomeActions.Add(new OpponentKilledAction(((IStateEntity)_enemy).EntityId));
+            _pendingOutcomeActions.Add(
+                new FightWonAction(((IStateEntity)_player).EntityId, defeatedState.EntityId));
+        }
+        else
+        {
+            _pendingOutcomeActions.Add(new PlayerDiedAction(((IStateEntity)_player).EntityId));
+        }
+
         FightEnded?.Invoke(this, new FightEndedEventArgs(wasWon, defeated));
     }
 }

@@ -8,18 +8,21 @@ public sealed class PresentationEvent
     private readonly ReadOnlyCollection<GameAction> _actions;
 
     public string SnapshotId { get; }
-    public string EventTypeId { get; }
+    public PresentationEventType EventType { get; }
     public IReadOnlyList<GameAction> Actions => _actions;
 
-    public PresentationEvent(string snapshotId, string eventTypeId, IEnumerable<GameAction> actions)
+    public PresentationEvent(
+        string snapshotId,
+        PresentationEventType eventType,
+        IEnumerable<GameAction> actions)
     {
         if (string.IsNullOrWhiteSpace(snapshotId))
         {
             throw new ArgumentException("Snapshot ID must not be empty.", nameof(snapshotId));
         }
-        if (string.IsNullOrWhiteSpace(eventTypeId))
+        if (eventType == PresentationEventType.Any)
         {
-            throw new ArgumentException("Event type ID must not be empty.", nameof(eventTypeId));
+            throw new ArgumentException("'Any' is a subscription selector, not a presentation event type.", nameof(eventType));
         }
         if (actions == null)
         {
@@ -33,7 +36,7 @@ public sealed class PresentationEvent
         }
 
         SnapshotId = snapshotId;
-        EventTypeId = eventTypeId;
+        EventType = eventType;
         _actions = copiedActions.AsReadOnly();
     }
 }
