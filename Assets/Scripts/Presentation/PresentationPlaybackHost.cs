@@ -44,7 +44,7 @@ public sealed class PresentationPlaybackHost : MonoBehaviour
                     return;
                 }
 
-                animationRegistry.Register(animation.EventTypeId, animation);
+                animationRegistry.Register(animation.EventType, animation);
             }
         }
 

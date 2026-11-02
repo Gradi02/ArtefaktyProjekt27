@@ -6,7 +6,7 @@ using UnityEngine;
 
 public sealed class TextPopupPresentationAnimation : PresentationAnimationBehaviour
 {
-    [SerializeField] private string eventTypeId = PresentationAnimationRegistry.FallbackEventTypeId;
+    [SerializeField] private PresentationEventType eventType = PresentationEventType.Any;
     [SerializeField] private TMP_Text popupText;
     [SerializeField] private string messageTemplate = "{eventType}";
     [SerializeField, Min(0f)] private float riseDistance = 60f;
@@ -18,7 +18,7 @@ public sealed class TextPopupPresentationAnimation : PresentationAnimationBehavi
 
     private Sequence _activeSequence;
 
-    public override string EventTypeId => eventTypeId;
+    public override PresentationEventType EventType => eventType;
 
     public override async Task PlayAsync(
         PresentationEvent presentationEvent,
@@ -45,7 +45,7 @@ public sealed class TextPopupPresentationAnimation : PresentationAnimationBehavi
         RectTransform popupRect = popupText.rectTransform;
         Vector3 originalScale = popupRect.localScale;
         Vector2 originalPosition = popupRect.anchoredPosition;
-        popupText.text = messageTemplate.Replace("{eventType}", presentationEvent.EventTypeId);
+        popupText.text = messageTemplate.Replace("{eventType}", presentationEvent.EventType.ToString());
         popupText.alpha = 0f;
         popupRect.localScale = originalScale * entranceScale;
         popupRect.anchoredPosition = originalPosition;

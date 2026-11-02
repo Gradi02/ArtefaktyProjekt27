@@ -151,4 +151,39 @@ namespace ANTK.Game.StateEngine.Actions
             ReasonId = TurnStartedAction.RequireValue(reasonId, nameof(reasonId));
         }
     }
+
+    public sealed class OpponentKilledAction : GameAction
+    {
+        public override string TypeId => "opponent.killed";
+        public string EntityId { get; }
+
+        public OpponentKilledAction(string entityId)
+        {
+            EntityId = TurnStartedAction.RequireValue(entityId, nameof(entityId));
+        }
+    }
+
+    public sealed class FightWonAction : GameAction
+    {
+        public override string TypeId => "fight.won";
+        public string WinnerEntityId { get; }
+        public string DefeatedEntityId { get; }
+
+        public FightWonAction(string winnerEntityId, string defeatedEntityId)
+        {
+            WinnerEntityId = TurnStartedAction.RequireValue(winnerEntityId, nameof(winnerEntityId));
+            DefeatedEntityId = TurnStartedAction.RequireValue(defeatedEntityId, nameof(defeatedEntityId));
+        }
+    }
+
+    public sealed class PlayerDiedAction : GameAction
+    {
+        public override string TypeId => "player.died";
+        public string EntityId { get; }
+
+        public PlayerDiedAction(string entityId)
+        {
+            EntityId = TurnStartedAction.RequireValue(entityId, nameof(entityId));
+        }
+    }
 }

@@ -5,49 +5,47 @@ using System.Threading.Tasks;
 
 public interface IActionPresentationAnimation
 {
-    string EventTypeId { get; }
+    PresentationEventType EventType { get; }
     Task PlayAsync(PresentationEvent presentationEvent, PresentationPlaybackContext playbackContext);
 }
 
 public sealed class PresentationAnimationRegistry
 {
-    public const string FallbackEventTypeId = "*";
+    private readonly Dictionary<PresentationEventType, IActionPresentationAnimation> _animations =
+        new Dictionary<PresentationEventType, IActionPresentationAnimation>();
 
-    private readonly Dictionary<string, IActionPresentationAnimation> _animations =
-        new Dictionary<string, IActionPresentationAnimation>();
-
-    public void Register(string eventTypeId, IActionPresentationAnimation animation)
+    public void Register(PresentationEventType eventType, IActionPresentationAnimation animation)
     {
-        if (string.IsNullOrWhiteSpace(eventTypeId))
-        {
-            throw new ArgumentException("Event type ID must not be empty.", nameof(eventTypeId));
-        }
         if (animation == null)
         {
             throw new ArgumentNullException(nameof(animation));
         }
-        if (_animations.ContainsKey(eventTypeId))
+        if (!Enum.IsDefined(typeof(PresentationEventType), eventType))
         {
-            throw new InvalidOperationException($"An animation is already registered for '{eventTypeId}'.");
+            throw new ArgumentOutOfRangeException(nameof(eventType));
+        }
+        if (_animations.ContainsKey(eventType))
+        {
+            throw new InvalidOperationException($"An animation is already registered for '{eventType}'.");
         }
 
-        _animations.Add(eventTypeId, animation);
+        _animations.Add(eventType, animation);
     }
 
-    public IActionPresentationAnimation Resolve(string eventTypeId)
+    public IActionPresentationAnimation Resolve(PresentationEventType eventType)
     {
         IActionPresentationAnimation animation;
-        if (_animations.TryGetValue(eventTypeId, out animation))
+        if (_animations.TryGetValue(eventType, out animation))
         {
             return animation;
         }
-        if (_animations.TryGetValue(FallbackEventTypeId, out animation))
+        if (_animations.TryGetValue(PresentationEventType.Any, out animation))
         {
             return animation;
         }
 
         throw new InvalidOperationException(
-            $"No presentation animation is registered for event '{eventTypeId}'.");
+            $"No presentation animation is registered for event '{eventType}'.");
     }
 }
 
@@ -166,6 +164,7 @@ public sealed class PresentationPlayer
     private bool _isPlaying;
 
     public event Action<string> SnapshotPlaybackCompleted;
+    public event Action<PresentationEvent> PresentationEventCompleted;
 
     public PresentationPlayer(PresentationEventQueue queue, PresentationAnimationRegistry animations)
     {
@@ -197,7 +196,7 @@ public sealed class PresentationPlayer
         {
             while (_queue.TryPeek(out PresentationEvent nextEvent))
             {
-                IActionPresentationAnimation animation = _animations.Resolve(nextEvent.EventTypeId);
+                IActionPresentationAnimation animation = _animations.Resolve(nextEvent.EventType);
                 await animation.PlayAsync(nextEvent, _playbackContext);
 
                 if (!_queue.TryDequeue(out PresentationEvent completedEvent) ||
@@ -206,6 +205,7 @@ public sealed class PresentationPlayer
                     throw new InvalidOperationException("The presentation queue changed during playback.");
                 }
 
+                PresentationEventCompleted?.Invoke(completedEvent);
                 if (!_queue.HasNextForSnapshot(completedEvent.SnapshotId))
                 {
                     SnapshotPlaybackCompleted?.Invoke(completedEvent.SnapshotId);

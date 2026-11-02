@@ -17,6 +17,7 @@ public sealed class BattleSceneController : MonoBehaviour
     private PresentationPlayer _presentationPlayer;
     private FightEndedEventArgs _pendingFightEnd;
     private bool _isCompletingFight;
+    private bool _hasPublishedFightEnded;
 
     public event System.EventHandler<FightEndedEventArgs> FightEnded;
     public event Action<PresentationEventQueue> PresentationQueueUpdated;
@@ -42,6 +43,7 @@ public sealed class BattleSceneController : MonoBehaviour
 
         _presentationPlayer = presentationPlayer;
         _presentationPlayer.SnapshotPlaybackCompleted += OnSnapshotPlaybackCompleted;
+        _presentationPlayer.PresentationEventCompleted += OnPresentationEventCompleted;
         if (!_presentationQueue.IsEmpty)
         {
             StartPresentationPlayback();
@@ -109,6 +111,7 @@ public sealed class BattleSceneController : MonoBehaviour
         if (_presentationPlayer != null)
         {
             _presentationPlayer.SnapshotPlaybackCompleted -= OnSnapshotPlaybackCompleted;
+            _presentationPlayer.PresentationEventCompleted -= OnPresentationEventCompleted;
         }
     }
 
@@ -203,7 +206,11 @@ public sealed class BattleSceneController : MonoBehaviour
 
     public void CompleteFightAfterPresentation()
     {
-        if (_pendingFightEnd == null || _isCompletingFight)
+        if (_isCompletingFight)
+        {
+            return;
+        }
+        if (_pendingFightEnd == null)
         {
             Debug.LogWarning("There is no pending fight-end event to complete.", this);
             return;
@@ -266,6 +273,25 @@ public sealed class BattleSceneController : MonoBehaviour
         CompleteActionPresentation(snapshotId);
     }
 
+    private void OnPresentationEventCompleted(PresentationEvent presentationEvent)
+    {
+        foreach (ANTK.Game.StateEngine.Actions.GameAction action in presentationEvent.Actions)
+        {
+            if (action is ANTK.Game.StateEngine.Actions.FightWonAction)
+            {
+                WinFight();
+                PublishFightEnded();
+                return;
+            }
+            if (action is ANTK.Game.StateEngine.Actions.PlayerDiedAction)
+            {
+                LoseFight();
+                PublishFightEnded();
+                return;
+            }
+        }
+    }
+
     private void EnsurePresentationDirector()
     {
         if (_presentationDirector == null)
@@ -283,9 +309,19 @@ public sealed class BattleSceneController : MonoBehaviour
         _pendingFightEnd = eventArgs;
         Debug.Log(
             $"Fight ended: {(eventArgs.WasWon ? "win" : "loss")}. " +
-            "Waiting for presentation before leaving the battle scene.",
+            "Waiting for the outcome action presentation before leaving the battle scene.",
             this);
-        FightEnded?.Invoke(this, eventArgs);
+    }
+
+    private void PublishFightEnded()
+    {
+        if (_pendingFightEnd == null || _hasPublishedFightEnded)
+        {
+            return;
+        }
+
+        _hasPublishedFightEnded = true;
+        FightEnded?.Invoke(this, _pendingFightEnd);
     }
 
     private void EndFight(bool wasWon)
@@ -296,6 +332,6 @@ public sealed class BattleSceneController : MonoBehaviour
             return;
         }
 
-        _runManager.EndFight(this, wasWon);
+        _isCompletingFight = _runManager.EndFight(this, wasWon);
     }
 }
