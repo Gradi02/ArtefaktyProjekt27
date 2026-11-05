@@ -131,6 +131,9 @@ namespace ANTK.Game.StateEngine.Actions
         public string RecipientEntityId { get; }
         public string CardInstanceId { get; }
         public string CardDefinitionId { get; }
+        public string CardTitle { get; }
+        public string CardType { get; }
+        public int CardCost { get; }
         public string SourceZoneId { get; }
         public string DestinationZoneId { get; }
         public string ReasonId { get; }
@@ -139,6 +142,9 @@ namespace ANTK.Game.StateEngine.Actions
             string recipientEntityId,
             string cardInstanceId,
             string cardDefinitionId,
+            string cardTitle,
+            string cardType,
+            int cardCost,
             string sourceZoneId,
             string destinationZoneId,
             string reasonId)
@@ -146,9 +152,31 @@ namespace ANTK.Game.StateEngine.Actions
             RecipientEntityId = TurnStartedAction.RequireValue(recipientEntityId, nameof(recipientEntityId));
             CardInstanceId = TurnStartedAction.RequireValue(cardInstanceId, nameof(cardInstanceId));
             CardDefinitionId = TurnStartedAction.RequireValue(cardDefinitionId, nameof(cardDefinitionId));
+            CardTitle = TurnStartedAction.RequireValue(cardTitle, nameof(cardTitle));
+            CardType = TurnStartedAction.RequireValue(cardType, nameof(cardType));
+            if (cardCost < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(cardCost));
+            }
+            CardCost = cardCost;
             SourceZoneId = TurnStartedAction.RequireValue(sourceZoneId, nameof(sourceZoneId));
             DestinationZoneId = TurnStartedAction.RequireValue(destinationZoneId, nameof(destinationZoneId));
             ReasonId = TurnStartedAction.RequireValue(reasonId, nameof(reasonId));
+        }
+    }
+
+    public sealed class CardPlayedAction : GameAction
+    {
+        public override string TypeId => "card.played";
+        public string PlayerEntityId { get; }
+        public string CardInstanceId { get; }
+        public string CardDefinitionId { get; }
+
+        public CardPlayedAction(string playerEntityId, string cardInstanceId, string cardDefinitionId)
+        {
+            PlayerEntityId = TurnStartedAction.RequireValue(playerEntityId, nameof(playerEntityId));
+            CardInstanceId = TurnStartedAction.RequireValue(cardInstanceId, nameof(cardInstanceId));
+            CardDefinitionId = TurnStartedAction.RequireValue(cardDefinitionId, nameof(cardDefinitionId));
         }
     }
 

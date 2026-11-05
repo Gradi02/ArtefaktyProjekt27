@@ -10,5 +10,6 @@ public enum PresentationEventType
     CardsDrawn = 7,
     OpponentKilled = 8,
     FightWon = 9,
-    PlayerDied = 10
+    PlayerDied = 10,
+    CardPlayed = 11
 }

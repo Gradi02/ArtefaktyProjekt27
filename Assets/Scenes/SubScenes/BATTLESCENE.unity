@@ -1293,6 +1293,7 @@ MonoBehaviour:
   scenePlayer: {fileID: 2000000002}
   sceneEnemy: {fileID: 2000000012}
   poisonDefinition: {fileID: 11400000, guid: 18d39a0c0f1840958bcf0718efb85d9f, type: 2}
+  handCardAnimator: {fileID: 3000000006}
 --- !u!114 &1729810434
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1308,6 +1309,8 @@ MonoBehaviour:
   battleSceneController: {fileID: 1729810433}
   animations:
   - {fileID: 1282056409}
+  - {fileID: 3000000007}
+  - {fileID: 3000000008}
 --- !u!1 &1798195279
 GameObject:
   m_ObjectHideFlags: 0
@@ -1521,6 +1524,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 92d9b75a2312cad48bb06eebc9e87316, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Player
+  _baseCardsDrawnAtTurnStart: 6
 --- !u!4 &2000000003
 Transform:
   m_ObjectHideFlags: 0
@@ -1990,6 +1994,8 @@ GameObject:
   - component: {fileID: 3000000004}
   - component: {fileID: 3000000005}
   - component: {fileID: 3000000006}
+  - component: {fileID: 3000000007}
+  - component: {fileID: 3000000008}
   m_Layer: 5
   m_Name: Card Hand Canvas
   m_TagString: Untagged
@@ -2092,7 +2098,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HandCardAnimator
   handRoot: {fileID: 3000000002}
-  initialPlaceholderCount: 5
+  initialPlaceholderCount: 0
   cardSize: {x: 170, y: 245}
   cardSpacing: 125
   cardBottomPadding: 24
@@ -2105,6 +2111,34 @@ MonoBehaviour:
   playAnimationDuration: 0.3
   entranceDelay: 0.08
   entranceDelayBetweenCards: 0.08
+--- !u!114 &3000000007
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3000000001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1bd3870c1fe44c5787bd20933260b13a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::HandCardPresentationAnimation
+  handCardAnimator: {fileID: 3000000006}
+  eventType: 7
+--- !u!114 &3000000008
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3000000001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1bd3870c1fe44c5787bd20933260b13a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::HandCardPresentationAnimation
+  handCardAnimator: {fileID: 3000000006}
+  eventType: 11
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

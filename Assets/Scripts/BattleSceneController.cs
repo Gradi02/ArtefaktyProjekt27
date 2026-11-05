@@ -9,6 +9,7 @@ public sealed class BattleSceneController : MonoBehaviour
     [SerializeField] private Player scenePlayer;
     [SerializeField] private Enemy sceneEnemy;
     [SerializeField] private PoisonStatusDefinition poisonDefinition;
+    [SerializeField] private HandCardAnimator handCardAnimator;
 
     private RunManager _runManager;
     private FightManager _fightManager;
@@ -86,6 +87,12 @@ public sealed class BattleSceneController : MonoBehaviour
             return;
         }
 
+        if (handCardAnimator == null)
+        {
+            Debug.LogError("Battle scene requires a HandCardAnimator.", this);
+            return;
+        }
+
         if (runManager.RegisterBattleSceneController(this))
         {
             _runManager = runManager;
@@ -93,7 +100,10 @@ public sealed class BattleSceneController : MonoBehaviour
                 playerState,
                 enemyState,
                 runManager.StateEngine,
-                poisonDefinition);
+                poisonDefinition,
+                runManager.CardCollection,
+                player.BaseCardsDrawnAtTurnStart);
+            handCardAnimator.CardPlayRequested += OnCardPlayRequested;
             _fightManager.FightEnded += OnFightEnded;
             _fightManager.ActionSnapshotCreated += OnActionSnapshotCreated;
             _fightManager.StartFight();
@@ -107,6 +117,10 @@ public sealed class BattleSceneController : MonoBehaviour
             _fightManager.FightEnded -= OnFightEnded;
             _fightManager.ActionSnapshotCreated -= OnActionSnapshotCreated;
             _fightManager.Dispose();
+        }
+        if (handCardAnimator != null)
+        {
+            handCardAnimator.CardPlayRequested -= OnCardPlayRequested;
         }
         if (_presentationPlayer != null)
         {
@@ -122,7 +136,7 @@ public sealed class BattleSceneController : MonoBehaviour
             return;
         }
 
-        GUILayout.BeginArea(new Rect(12f, 12f, 360f, 300f), "StateEngine fight test", GUI.skin.window);
+        GUILayout.BeginArea(new Rect(12f, 12f, 360f, 360f), "StateEngine fight test", GUI.skin.window);
         GUILayout.Label($"Active turn: {_fightManager.CurrentActor.name}");
         GUILayout.Label(
             $"Player: {_fightManager.PlayerState.name} " +
@@ -135,6 +149,7 @@ public sealed class BattleSceneController : MonoBehaviour
             $"| Attack {_fightManager.EnemyState.AttackPower.CalculateValue()} " +
             $"| [{GetStatuses(_fightManager.EnemyState)}]");
         GUILayout.Space(8f);
+        GUILayout.Label($"Hand ({_fightManager.PlayerDeck.Hand.Count}):");
 
         if (_fightManager.IsFightOver)
         {
@@ -254,6 +269,11 @@ public sealed class BattleSceneController : MonoBehaviour
         }
 
         StartPresentationPlayback();
+    }
+
+    private bool OnCardPlayRequested(string cardInstanceId)
+    {
+        return _fightManager != null && _fightManager.TryPlayCard(cardInstanceId);
     }
 
     private async void StartPresentationPlayback()
