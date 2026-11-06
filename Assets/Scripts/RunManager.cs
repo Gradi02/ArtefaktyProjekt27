@@ -20,22 +20,17 @@ public class RunManager
     public RunManager(
         Player selectedCharacter,
         StateEngine stateEngine,
-        CardDefinition starterAttackCardDefinition)
+        StarterDeckDefinition starterDeckDefinition)
     {
-        if (!starterAttackCardDefinition)
+        if (!starterDeckDefinition)
         {
-            throw new System.ArgumentNullException(nameof(starterAttackCardDefinition));
+            throw new System.ArgumentNullException(nameof(starterDeckDefinition));
         }
 
         _selectedCharacter = selectedCharacter;
         _hasSelectedCharacter = selectedCharacter != null;
         _stateEngine = stateEngine;
-
-        // Cards starter pack for the run.
-        _cardCollection = new CardCollection();
-        _cardCollection.Obtain(starterAttackCardDefinition);
-        _cardCollection.Obtain(starterAttackCardDefinition);
-        _cardCollection.Obtain(starterAttackCardDefinition);
+        _cardCollection = starterDeckDefinition.CreateCollection();
     }
 
     public void StartRun()

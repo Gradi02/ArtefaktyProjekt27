@@ -7,7 +7,7 @@ public sealed class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
     public RunManager runManager { get; private set; }
-    [SerializeField] private CardDefinition _starterAttackCardDefinition;
+    [SerializeField] private StarterDeckDefinition _starterDeckDefinition;
     private StateEngine _stateEngine;
     private EffectPipeline pipeline;
 
@@ -40,9 +40,9 @@ public sealed class GameManager : MonoBehaviour
 
     public void StartRun(Player selectedCharacter)
     {
-        if (!_starterAttackCardDefinition)
+        if (!_starterDeckDefinition)
         {
-            Debug.LogError("GameManager requires a starter attack card definition.", this);
+            Debug.LogError("GameManager requires a starter deck definition.", this);
             return;
         }
         if (_stateEngine == null)
@@ -51,7 +51,7 @@ public sealed class GameManager : MonoBehaviour
             return;
         }
 
-        runManager = new RunManager(selectedCharacter, _stateEngine, _starterAttackCardDefinition);
+        runManager = new RunManager(selectedCharacter, _stateEngine, _starterDeckDefinition);
         runManager.StartRun();
     }
 

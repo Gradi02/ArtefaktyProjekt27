@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fc433a971db449ecbd0ddeaf51203606, type: 3}
+  m_Name: Octopus_Ink
+  m_EditorClassIdentifier: Assembly-CSharp::CardDefinition
+  _id: 6dc6cbf4a63e48c8b79467a8a9ead920
+  _title: Octopus Ink
+  _type: 1
+  _behaviour: {fileID: 11400000, guid: bf77531d9cb1d5240a6703a894b63a50, type: 2}
+  _baseCost: 0
