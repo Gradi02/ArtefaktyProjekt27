@@ -6,20 +6,31 @@ public class RunManager
     private readonly Player _selectedCharacter;
     private readonly bool _hasSelectedCharacter;
     private readonly StateEngine _stateEngine;
+    private readonly CardCollection _cardCollection;
     private BattleSceneController _battleSceneController;
     private bool _isEndingFight;
 
     public Player SelectedCharacter => _selectedCharacter;
     public bool HasSelectedCharacter => _hasSelectedCharacter;
     public StateEngine StateEngine => _stateEngine;
+    public CardCollection CardCollection => _cardCollection;
     public bool IsFightInProgress { get; private set; }
     public bool? LastFightWasWon { get; private set; }
 
-    public RunManager(Player selectedCharacter, StateEngine stateEngine)
+    public RunManager(
+        Player selectedCharacter,
+        StateEngine stateEngine,
+        StarterDeckDefinition starterDeckDefinition)
     {
+        if (!starterDeckDefinition)
+        {
+            throw new System.ArgumentNullException(nameof(starterDeckDefinition));
+        }
+
         _selectedCharacter = selectedCharacter;
         _hasSelectedCharacter = selectedCharacter != null;
         _stateEngine = stateEngine;
+        _cardCollection = starterDeckDefinition.CreateCollection();
     }
 
     public void StartRun()

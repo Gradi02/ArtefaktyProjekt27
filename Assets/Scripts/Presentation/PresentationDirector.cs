@@ -137,6 +137,10 @@ public sealed class PresentationDirector
             {
                 return PresentationEventType.CardsDrawn;
             }
+            if (action is CardPlayedAction)
+            {
+                return PresentationEventType.CardPlayed;
+            }
             if (action is OpponentKilledAction)
             {
                 return PresentationEventType.OpponentKilled;

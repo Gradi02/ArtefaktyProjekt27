@@ -7,6 +7,7 @@ public sealed class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
     public RunManager runManager { get; private set; }
+    [SerializeField] private StarterDeckDefinition _starterDeckDefinition;
     private StateEngine _stateEngine;
     private EffectPipeline pipeline;
 
@@ -39,7 +40,18 @@ public sealed class GameManager : MonoBehaviour
 
     public void StartRun(Player selectedCharacter)
     {
-        runManager = new RunManager(selectedCharacter, _stateEngine);
+        if (!_starterDeckDefinition)
+        {
+            Debug.LogError("GameManager requires a starter deck definition.", this);
+            return;
+        }
+        if (_stateEngine == null)
+        {
+            Debug.LogError("Game state must be initialized before starting a run.", this);
+            return;
+        }
+
+        runManager = new RunManager(selectedCharacter, _stateEngine, _starterDeckDefinition);
         runManager.StartRun();
     }
 

@@ -11,8 +11,12 @@ public sealed class FightManager : IDisposable
     private readonly LivingMixin _enemy;
     private readonly StateEngine _stateEngine;
     private readonly PoisonStatusDefinition _poisonDefinition;
+    private readonly CombatDeck _playerDeck;
+    private readonly int _baseCardsDrawnAtTurnStart;
     private readonly ActionSnapshotRecorder _actionRecorder = new ActionSnapshotRecorder();
     private readonly List<GameAction> _pendingOutcomeActions = new List<GameAction>();
+    private readonly Queue<string> _queuedCardPlays = new Queue<string>();
+    private readonly HashSet<string> _queuedCardPlayIds = new HashSet<string>();
     private bool _isFightOver;
     private bool _isExecutingCommand;
     private string _pendingSnapshotId;
@@ -21,17 +25,21 @@ public sealed class FightManager : IDisposable
     public LivingMixin CurrentOpponent => ReferenceEquals(CurrentActor, _player) ? _enemy : _player;
     public LivingMixin PlayerState => _player;
     public LivingMixin EnemyState => _enemy;
+    public CombatDeck PlayerDeck => _playerDeck;
     public bool IsTurnStarted { get; private set; }
     public bool IsFightOver => _isFightOver;
     public bool IsPresentationPending { get; private set; }
     public event EventHandler<FightEndedEventArgs> FightEnded;
     public event EventHandler<GameActionSnapshotEventArgs> ActionSnapshotCreated;
+    public event Action<string, bool> QueuedCardPlayResolved;
 
     public FightManager(
         LivingMixin player,
         LivingMixin enemy,
         StateEngine stateEngine,
-        PoisonStatusDefinition poisonDefinition)
+        PoisonStatusDefinition poisonDefinition,
+        CardCollection cardCollection,
+        int baseCardsDrawnAtTurnStart)
     {
         if (player == null)
         {
@@ -53,11 +61,21 @@ public sealed class FightManager : IDisposable
         {
             throw new ArgumentNullException(nameof(poisonDefinition));
         }
+        if (cardCollection == null)
+        {
+            throw new ArgumentNullException(nameof(cardCollection));
+        }
+        if (baseCardsDrawnAtTurnStart < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(baseCardsDrawnAtTurnStart));
+        }
 
         _player = player;
         _enemy = enemy;
         _stateEngine = stateEngine;
         _poisonDefinition = poisonDefinition;
+        _playerDeck = new CombatDeck(cardCollection, int.MaxValue);
+        _baseCardsDrawnAtTurnStart = baseCardsDrawnAtTurnStart;
         CurrentActor = _player;
         _player.onDeath += OnEntityDeath;
         _enemy.onDeath += OnEntityDeath;
@@ -148,6 +166,88 @@ public sealed class FightManager : IDisposable
         });
     }
 
+    public bool TryPlayCard(CombatCard card)
+    {
+        bool queueForPresentation = IsPresentationPending;
+        if (queueForPresentation &&
+            (_isFightOver || !IsTurnStarted || !ReferenceEquals(CurrentActor, _player)))
+        {
+            Debug.LogWarning("This action is only available during the player's turn.");
+            return false;
+        }
+        if (!queueForPresentation && !RequirePlayerTurn())
+        {
+            return false;
+        }
+        if (card == null || !_playerDeck.Hand.Contains(card))
+        {
+            Debug.LogWarning("The card is not in the player's hand.");
+            return false;
+        }
+        if (card.Source.Definition.behaviour == null)
+        {
+            Debug.LogError($"Card '{card.Source.Definition.title}' has no behaviour.");
+            return false;
+        }
+
+        if (queueForPresentation)
+        {
+            string cardInstanceId = card.Source.InstanceId;
+            if (!_queuedCardPlayIds.Add(cardInstanceId))
+            {
+                Debug.LogWarning($"Card '{cardInstanceId}' is already queued to be played.");
+                return false;
+            }
+
+            _queuedCardPlays.Enqueue(cardInstanceId);
+            return true;
+        }
+
+        ExecuteCommand("player.play-card", () =>
+        {
+            card.Source.Definition.behaviour.Perform(
+                new CardContext(_stateEngine, _player, _enemy, card));
+            if (!_playerDeck.Discard(card))
+            {
+                throw new InvalidOperationException("The played card could not be moved to the discard pile.");
+            }
+            _stateEngine.RecordExecutedAction(new CardPlayedAction(
+                ((IStateEntity)_player).EntityId,
+                card.Source.InstanceId,
+                card.Source.Definition.Id));
+        });
+        return true;
+    }
+
+    public bool TryPlayCard(string cardInstanceId)
+    {
+        if (string.IsNullOrWhiteSpace(cardInstanceId))
+        {
+            throw new ArgumentException("Card instance ID must not be empty.", nameof(cardInstanceId));
+        }
+        if (!IsPresentationPending && !RequirePlayerTurn())
+        {
+            return false;
+        }
+        if (IsPresentationPending &&
+            (_isFightOver || !IsTurnStarted || !ReferenceEquals(CurrentActor, _player)))
+        {
+            Debug.LogWarning("This action is only available during the player's turn.");
+            return false;
+        }
+
+        foreach (CombatCard card in _playerDeck.Hand)
+        {
+            if (card.Source.InstanceId == cardInstanceId)
+            {
+                return TryPlayCard(card);
+            }
+        }
+
+        Debug.LogWarning($"Card '{cardInstanceId}' is not in the player's hand.");
+        return false;
+    }
+
     public bool AcknowledgePresentationCompleted(string snapshotId)
     {
         if (!IsPresentationPending || snapshotId != _pendingSnapshotId)
@@ -158,6 +258,7 @@ public sealed class FightManager : IDisposable
 
         _pendingSnapshotId = null;
         IsPresentationPending = false;
+        ResolveQueuedCardPlays();
         return true;
     }
 
@@ -186,6 +287,29 @@ public sealed class FightManager : IDisposable
 
         IsTurnStarted = true;
         _stateEngine.StartTurn(CurrentActor);
+        if (TryFinishFight())
+        {
+            return;
+        }
+
+        if (ReferenceEquals(CurrentActor, _player) && _baseCardsDrawnAtTurnStart > 0)
+        {
+            IReadOnlyList<CombatCard> drawnCards = _playerDeck.DrawCards(_baseCardsDrawnAtTurnStart);
+            foreach (CombatCard card in drawnCards)
+            {
+                _stateEngine.RecordExecutedAction(new CardDrawnAction(
+                    ((IStateEntity)_player).EntityId,
+                    card.Source.InstanceId,
+                    card.Source.Definition.Id,
+                    card.Source.Definition.title,
+                    card.Source.Definition.type.ToString(),
+                    card.Source.Definition.baseCost.value,
+                    "draw_pile",
+                    "hand",
+                    "turn.start"));
+            }
+        }
+
         Debug.Log($"Turn started: {CurrentActor.name} ({CurrentActor.health}/{CurrentActor.maxHealth} HP).");
         TryFinishFight();
     }
@@ -228,6 +352,21 @@ public sealed class FightManager : IDisposable
         }
 
         return true;
+    }
+
+    private void ResolveQueuedCardPlays()
+    {
+        while (!IsPresentationPending && !_isFightOver && _queuedCardPlays.Count > 0)
+        {
+            string cardInstanceId = _queuedCardPlays.Dequeue();
+            _queuedCardPlayIds.Remove(cardInstanceId);
+            bool played = TryPlayCard(cardInstanceId);
+            QueuedCardPlayResolved?.Invoke(cardInstanceId, played);
+            if (played)
+            {
+                return;
+            }
+        }
     }
 
     private void ResolveEndPlayerTurn()

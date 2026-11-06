@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 
 /// <summary>
-/// Manages cards during combat. Draw pile, hand and discrarded pile.
+/// Manages cards during combat. Draw pile, hand and discard pile.
 /// </summary>
 public class CombatDeck
 {
@@ -17,7 +17,7 @@ public class CombatDeck
     private readonly List<CombatCard> _drawPile;
     private readonly List<CombatCard> _discardPile;
 
-    private static readonly Random Rnd = new();
+    private static readonly Random Rnd = new Random();
 
     public CombatDeck(CardCollection collection, int handCapacity)
     {
@@ -36,29 +36,17 @@ public class CombatDeck
         this.DrawPile = _drawPile.AsReadOnly();
         this.DiscardPile = _discardPile.AsReadOnly();
 
-        foreach (var card in collection.Cards)
+        foreach (Card card in collection.Cards)
         {
             _drawPile.Add(new CombatCard(card));
         }
-        Shuffle(_drawPile);
     }
-
 
     public bool Draw()
     {
-        if (_hand.Count + 1 > HandCapacity)
-            return false;
-        if (_drawPile.Count == 0)
-            return false;
-
-        int lastInd = _drawPile.Count - 1;
-        CombatCard targetCard = _drawPile[lastInd];
-        _drawPile.RemoveAt(lastInd);
-        
-        _hand.Add(targetCard);
-        return true;
+        return DrawCards(1).Count == 1;
     }
-    
+
     /// <summary>
     /// Draws specified amount of cards from draw pile and places them on hand.
     /// </summary>
@@ -66,26 +54,81 @@ public class CombatDeck
     /// <exception cref="ArgumentOutOfRangeException">If amount is less than 1</exception>
     public int Draw(int amount)
     {
-        if (amount < 1)
-            throw new ArgumentOutOfRangeException("Draw amount of cards should be 1 or greater!");
+        return DrawCards(amount).Count;
+    }
 
-        int drawn = 0;
-        for ( ; amount > 0; amount--)
+    /// <summary>
+    /// Draws cards after shuffling the available draw pile once.
+    /// </summary>
+    public IReadOnlyList<CombatCard> DrawCards(int amount)
+    {
+        if (amount < 1)
         {
-            if (!Draw())
-                break;
-            drawn++;
+            throw new ArgumentOutOfRangeException(nameof(amount), "Draw amount must be 1 or greater.");
         }
-        return drawn;
+
+        List<CombatCard> drawnCards = new List<CombatCard>();
+        if (_hand.Count >= HandCapacity)
+        {
+            return drawnCards.AsReadOnly();
+        }
+
+        if (_drawPile.Count == 0 && _discardPile.Count > 0)
+        {
+            _drawPile.AddRange(_discardPile);
+            _discardPile.Clear();
+        }
+        if (_drawPile.Count == 0)
+        {
+            return drawnCards.AsReadOnly();
+        }
+
+        Shuffle(_drawPile);
+
+        while (amount > 0 && _hand.Count < HandCapacity && _drawPile.Count > 0)
+        {
+            CombatCard targetCard = _drawPile[0];
+            _drawPile.RemoveAt(0);
+            _hand.Add(targetCard);
+            drawnCards.Add(targetCard);
+            amount--;
+        }
+
+        return drawnCards.AsReadOnly();
     }
 
     public bool Discard(CombatCard card)
     {
-        if (!_hand.Remove(card))
+        if (card == null || !_hand.Remove(card))
+        {
             return false;
-        
+        }
+
         _discardPile.Add(card);
         return true;
+    }
+
+    /// <summary>
+    /// Adds a card to this fight only; it does not change the persistent run collection.
+    /// </summary>
+    public CombatCard AddTemporaryCard(CardDefinition definition)
+    {
+        CombatCard card = new CombatCard(new Card(definition));
+        _drawPile.Add(card);
+        return card;
+    }
+
+    /// <summary>
+    /// Removes a card from any combat zone without changing the persistent run collection.
+    /// </summary>
+    public bool Remove(CombatCard card)
+    {
+        if (card == null)
+        {
+            return false;
+        }
+
+        return _hand.Remove(card) || _drawPile.Remove(card) || _discardPile.Remove(card);
     }
 
     public void ReshuffleDiscardPile()
@@ -95,17 +138,12 @@ public class CombatDeck
         Shuffle(_drawPile);
     }
 
-    // TODO: Use other shuffle method
     private void Shuffle(List<CombatCard> cards)
     {
-        int count = cards.Count;
-        
-        for (int steps = cards.Count; steps > 0; steps--)
+        for (int index = cards.Count - 1; index > 0; index--)
         {
-            int indA = Rnd.Next(0, count);
-            int indB = Rnd.Next(0, count);
-            
-            (cards[indB], cards[indA]) = (cards[indA], cards[indB]);
+            int swapIndex = Rnd.Next(index + 1);
+            (cards[index], cards[swapIndex]) = (cards[swapIndex], cards[index]);
         }
     }
 }

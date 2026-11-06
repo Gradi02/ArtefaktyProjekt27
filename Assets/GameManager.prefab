@@ -44,3 +44,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 64702d3eb73ee294d97697fbd57f0886, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameManager
+  _starterDeckDefinition: {fileID: 11400000, guid: 700d5fa992c74bd8a58cc3262e001c25, type: 2}
