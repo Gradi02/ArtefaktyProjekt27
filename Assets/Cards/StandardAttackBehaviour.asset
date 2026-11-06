@@ -12,3 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8fe89128398f47109b915fbb5f713ebb, type: 3}
   m_Name: StandardAttackBehaviour
   m_EditorClassIdentifier: 
+  _useSourceAttackPower: 1
+  _damageAmount: 5
+  _statusDefinition: {fileID: 0}
+  _statusStacks: 1
+  _statusDurationTurns: -1

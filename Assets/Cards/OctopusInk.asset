@@ -10,10 +10,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fc433a971db449ecbd0ddeaf51203606, type: 3}
-  m_Name: Octopus_Ink
+  m_Name: OctopusInk
   m_EditorClassIdentifier: Assembly-CSharp::CardDefinition
-  _id: 6dc6cbf4a63e48c8b79467a8a9ead920
+  _id: standard.ink
   _title: Octopus Ink
   _type: 1
-  _behaviour: {fileID: 11400000, guid: bf77531d9cb1d5240a6703a894b63a50, type: 2}
+  _behaviour: {fileID: 11400000, guid: da7b6baf819cc1e4abb8a3403f3e4f63, type: 2}
   _baseCost: 0
