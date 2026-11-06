@@ -31,6 +31,7 @@ public sealed class FightManager : IDisposable
     public bool IsPresentationPending { get; private set; }
     public event EventHandler<FightEndedEventArgs> FightEnded;
     public event EventHandler<GameActionSnapshotEventArgs> ActionSnapshotCreated;
+    public event Action<string, bool> QueuedCardPlayResolved;
 
     public FightManager(
         LivingMixin player,
@@ -359,7 +360,9 @@ public sealed class FightManager : IDisposable
         {
             string cardInstanceId = _queuedCardPlays.Dequeue();
             _queuedCardPlayIds.Remove(cardInstanceId);
-            if (TryPlayCard(cardInstanceId))
+            bool played = TryPlayCard(cardInstanceId);
+            QueuedCardPlayResolved?.Invoke(cardInstanceId, played);
+            if (played)
             {
                 return;
             }

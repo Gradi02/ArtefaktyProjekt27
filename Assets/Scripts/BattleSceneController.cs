@@ -106,6 +106,7 @@ public sealed class BattleSceneController : MonoBehaviour
             handCardAnimator.CardPlayRequested += OnCardPlayRequested;
             _fightManager.FightEnded += OnFightEnded;
             _fightManager.ActionSnapshotCreated += OnActionSnapshotCreated;
+            _fightManager.QueuedCardPlayResolved += OnQueuedCardPlayResolved;
             _fightManager.StartFight();
         }
     }
@@ -116,6 +117,7 @@ public sealed class BattleSceneController : MonoBehaviour
         {
             _fightManager.FightEnded -= OnFightEnded;
             _fightManager.ActionSnapshotCreated -= OnActionSnapshotCreated;
+            _fightManager.QueuedCardPlayResolved -= OnQueuedCardPlayResolved;
             _fightManager.Dispose();
         }
         if (handCardAnimator != null)
@@ -273,7 +275,27 @@ public sealed class BattleSceneController : MonoBehaviour
 
     private bool OnCardPlayRequested(string cardInstanceId)
     {
-        return _fightManager != null && _fightManager.TryPlayCard(cardInstanceId);
+        if (_fightManager == null)
+        {
+            return false;
+        }
+
+        handCardAnimator.SetCardQueued(cardInstanceId, true);
+        bool accepted = _fightManager.TryPlayCard(cardInstanceId);
+        if (!accepted)
+        {
+            handCardAnimator.SetCardQueued(cardInstanceId, false);
+        }
+
+        return accepted;
+    }
+
+    private void OnQueuedCardPlayResolved(string cardInstanceId, bool played)
+    {
+        if (!played)
+        {
+            handCardAnimator.SetCardQueued(cardInstanceId, false);
+        }
     }
 
     private async void StartPresentationPlayback()

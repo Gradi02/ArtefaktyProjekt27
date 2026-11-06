@@ -22,6 +22,7 @@ public sealed class HandCardAnimator : MonoBehaviour
     [SerializeField] private float sideRotation = 8f;
     [SerializeField] private float selectedLift = 28f;
     [SerializeField] private float selectedScale = 1.08f;
+    [SerializeField] private Vector2 queuedCardStackOffset = new Vector2(10f, -10f);
     [SerializeField] private float layoutDuration = 0.22f;
 
     [Header("Input and Animation")]
@@ -32,10 +33,12 @@ public sealed class HandCardAnimator : MonoBehaviour
 
     private readonly List<RectTransform> items = new List<RectTransform>();
     private readonly List<string> cardInstanceIds = new List<string>();
+    private readonly List<string> queuedCardInstanceIds = new List<string>();
 
     private Canvas parentCanvas;
     private RectTransform draggedCard;
     private RectTransform selectedCard;
+    private RectTransform activePlayedCard;
     private Sequence entranceSequence;
     private Vector2 dragStartPointer;
     private Vector2 dragStartPosition;
@@ -45,6 +48,29 @@ public sealed class HandCardAnimator : MonoBehaviour
     public event Func<string, bool> CardPlayRequested;
 
     public int CardCount => items.Count;
+
+    public void SetCardQueued(string cardInstanceId, bool isQueued)
+    {
+        if (string.IsNullOrWhiteSpace(cardInstanceId))
+        {
+            throw new ArgumentException("Card instance ID must not be empty.", nameof(cardInstanceId));
+        }
+
+        if (isQueued)
+        {
+            if (!queuedCardInstanceIds.Contains(cardInstanceId))
+            {
+                queuedCardInstanceIds.Add(cardInstanceId);
+            }
+        }
+        else
+        {
+            queuedCardInstanceIds.Remove(cardInstanceId);
+        }
+
+        ApplyCardLayout(true);
+        ApplyQueuedCardLayout(true);
+    }
 
     private void Awake()
     {
@@ -305,43 +331,58 @@ public sealed class HandCardAnimator : MonoBehaviour
 
         RectTransform card = items[index];
         Vector2 originalPosition = card.anchoredPosition;
+        Vector2 playTargetPosition = GetScreenCenterInHandSpace(card);
+        queuedCardInstanceIds.Remove(cardInstanceId);
         items.RemoveAt(index);
         cardInstanceIds.RemoveAt(index);
         if (selectedCard == card)
         {
             selectedCard = null;
         }
+        card.SetAsLastSibling();
+        activePlayedCard = card;
         ApplyCardLayout(true);
+        ApplyQueuedCardLayout(true);
 
         CanvasGroup canvasGroup = card.GetComponent<CanvasGroup>();
         Sequence sequence = DOTween.Sequence()
             .SetUpdate(true)
             .SetLink(card.gameObject, LinkBehaviour.KillOnDestroy);
-        sequence.Join(card.DOAnchorPosY(originalPosition.y + cardSize.y, playAnimationDuration)
-            .SetEase(Ease.InCubic));
+        sequence.Join(card.DOAnchorPos(playTargetPosition, playAnimationDuration).SetEase(Ease.InCubic));
         sequence.Join(card.DOScale(0.75f, playAnimationDuration));
         sequence.Join(canvasGroup.DOFade(0f, playAnimationDuration));
-        await PlaySequenceAsync(
-            sequence,
-            playbackContext,
-            () =>
-            {
-                if (card != null)
+        try
+        {
+            await PlaySequenceAsync(
+                sequence,
+                playbackContext,
+                () =>
                 {
-                    Destroy(card.gameObject);
-                }
-            },
-            () =>
-            {
-                if (card != null)
+                    if (card != null)
+                    {
+                        Destroy(card.gameObject);
+                    }
+                },
+                () =>
                 {
-                    items.Insert(Mathf.Min(index, items.Count), card);
-                    cardInstanceIds.Insert(Mathf.Min(index, cardInstanceIds.Count), cardInstanceId);
-                    card.anchoredPosition = originalPosition;
-                    canvasGroup.alpha = 1f;
-                    ApplyCardLayout(true);
-                }
-            });
+                    if (card != null)
+                    {
+                        items.Insert(Mathf.Min(index, items.Count), card);
+                        cardInstanceIds.Insert(Mathf.Min(index, cardInstanceIds.Count), cardInstanceId);
+                        card.anchoredPosition = originalPosition;
+                        canvasGroup.alpha = 1f;
+                        ApplyCardLayout(true);
+                    }
+                });
+        }
+        finally
+        {
+            if (activePlayedCard == card)
+            {
+                activePlayedCard = null;
+                ApplyQueuedCardLayout(false);
+            }
+        }
     }
 
     private RectTransform CreateCard(string title, string cardType, int cost)
@@ -476,8 +517,14 @@ public sealed class HandCardAnimator : MonoBehaviour
             ? null
             : parentCanvas.worldCamera;
 
-        foreach (RectTransform item in items)
+        for (int i = 0; i < items.Count; i++)
         {
+            RectTransform item = items[i];
+            if (queuedCardInstanceIds.Contains(cardInstanceIds[i]))
+            {
+                continue;
+            }
+
             if (item != null &&
                 item.gameObject.activeInHierarchy &&
                 item.GetSiblingIndex() > highestSiblingIndex &&
@@ -617,6 +664,16 @@ public sealed class HandCardAnimator : MonoBehaviour
 
     private void ApplyCardLayout(bool animate)
     {
+        int handCardCount = 0;
+        for (int i = 0; i < items.Count; i++)
+        {
+            if (!queuedCardInstanceIds.Contains(cardInstanceIds[i]))
+            {
+                handCardCount++;
+            }
+        }
+
+        int handIndex = 0;
         for (int i = 0; i < items.Count; i++)
         {
             RectTransform card = items[i];
@@ -625,8 +682,15 @@ public sealed class HandCardAnimator : MonoBehaviour
                 continue;
             }
 
+            bool isQueued = queuedCardInstanceIds.Contains(cardInstanceIds[i]);
+            if (isQueued)
+            {
+                continue;
+            }
+
             bool isSelected = card == selectedCard;
-            Vector2 targetPosition = GetCardPosition(i);
+            Vector2 targetPosition = GetCardPosition(handIndex, handCardCount);
+            handIndex++;
             if (isSelected)
             {
                 targetPosition.y += selectedLift;
@@ -651,19 +715,76 @@ public sealed class HandCardAnimator : MonoBehaviour
         }
     }
 
-    private Vector2 GetCardPosition(int index)
+    private void ApplyQueuedCardLayout(bool animate)
     {
-        float spacing = cardSpacing;
-        if (items.Count > 1)
+        for (int queuedIndex = queuedCardInstanceIds.Count - 1; queuedIndex >= 0; queuedIndex--)
         {
-            float availableWidth = Mathf.Max(0f, handRoot.rect.width - cardSize.x);
-            spacing = Mathf.Min(spacing, availableWidth / (items.Count - 1));
+            int cardIndex = cardInstanceIds.IndexOf(queuedCardInstanceIds[queuedIndex]);
+            if (cardIndex < 0)
+            {
+                continue;
+            }
+
+            RectTransform card = items[cardIndex];
+            Vector2 targetPosition = GetScreenCenterInHandSpace(card) +
+                queuedCardStackOffset * (queuedIndex + 1);
+            if (activePlayedCard != null)
+            {
+                card.SetSiblingIndex(activePlayedCard.GetSiblingIndex());
+            }
+            else
+            {
+                card.SetAsLastSibling();
+            }
+            card.DOKill();
+            if (animate)
+            {
+                card.DOAnchorPos(targetPosition, layoutDuration).SetEase(Ease.OutCubic);
+            }
+            else
+            {
+                card.anchoredPosition = targetPosition;
+            }
+        }
+    }
+
+    private Vector2 GetScreenCenterInHandSpace(RectTransform card)
+    {
+        Vector2 screenCenter = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                handRoot,
+                screenCenter,
+                GetEventCamera(),
+                out Vector2 centerPosition))
+        {
+            throw new InvalidOperationException("The screen center could not be mapped to the card hand.");
         }
 
-        float offset = index - (items.Count - 1) * 0.5f;
+        Vector2 anchor = card.anchorMin +
+            Vector2.Scale(card.anchorMax - card.anchorMin, card.pivot);
+        Vector2 anchorPosition = handRoot.rect.min +
+            Vector2.Scale(handRoot.rect.size, anchor);
+        return centerPosition - anchorPosition;
+    }
+
+    private Vector2 GetCardPosition(int index)
+    {
+        return GetCardPosition(index, items.Count);
+    }
+
+    private Vector2 GetCardPosition(int index, int cardCount)
+    {
+        float spacing = cardSpacing;
+        if (cardCount > 1)
+        {
+            float availableWidth = Mathf.Max(0f, handRoot.rect.width - cardSize.x);
+            spacing = Mathf.Min(spacing, availableWidth / (cardCount - 1));
+        }
+
+        float offset = index - (cardCount - 1) * 0.5f;
         float x = offset * spacing;
         float y = cardBottomPadding + cardSize.y * 0.5f +
-            Mathf.Max(0f, 1f - Mathf.Abs(offset) / Mathf.Max(1f, items.Count * 0.5f)) * fanHeight;
+            Mathf.Max(0f, 1f - Mathf.Abs(offset) / Mathf.Max(1f, cardCount * 0.5f)) * fanHeight;
         return new Vector2(x, y);
     }
 
