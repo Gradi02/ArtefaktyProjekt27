@@ -550,10 +550,9 @@ public sealed class HandCardAnimator : MonoBehaviour
         }
 
         string cardInstanceId = cardInstanceIds[index];
-        bool accepted;
         try
         {
-            accepted = CardPlayRequested != null && CardPlayRequested.Invoke(cardInstanceId);
+            CardPlayRequested?.Invoke(cardInstanceId);
         }
         catch
         {
@@ -561,10 +560,11 @@ public sealed class HandCardAnimator : MonoBehaviour
             throw;
         }
 
-        if (!accepted)
+        if (selectedCard == card)
         {
-            ApplyCardLayout(true);
+            selectedCard = null;
         }
+        ApplyCardLayout(true);
     }
 
     private void AnimateEntrance()

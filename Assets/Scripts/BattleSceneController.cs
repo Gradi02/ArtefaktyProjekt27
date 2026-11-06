@@ -278,6 +278,11 @@ public sealed class BattleSceneController : MonoBehaviour
 
     private async void StartPresentationPlayback()
     {
+        if (_presentationPlayer.IsPlaying)
+        {
+            return;
+        }
+
         try
         {
             await _presentationPlayer.PlayQueuedAsync();

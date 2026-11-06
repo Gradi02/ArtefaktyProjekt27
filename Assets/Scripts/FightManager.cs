@@ -15,6 +15,8 @@ public sealed class FightManager : IDisposable
     private readonly int _baseCardsDrawnAtTurnStart;
     private readonly ActionSnapshotRecorder _actionRecorder = new ActionSnapshotRecorder();
     private readonly List<GameAction> _pendingOutcomeActions = new List<GameAction>();
+    private readonly Queue<string> _queuedCardPlays = new Queue<string>();
+    private readonly HashSet<string> _queuedCardPlayIds = new HashSet<string>();
     private bool _isFightOver;
     private bool _isExecutingCommand;
     private string _pendingSnapshotId;
@@ -165,7 +167,14 @@ public sealed class FightManager : IDisposable
 
     public bool TryPlayCard(CombatCard card)
     {
-        if (!RequirePlayerTurn())
+        bool queueForPresentation = IsPresentationPending;
+        if (queueForPresentation &&
+            (_isFightOver || !IsTurnStarted || !ReferenceEquals(CurrentActor, _player)))
+        {
+            Debug.LogWarning("This action is only available during the player's turn.");
+            return false;
+        }
+        if (!queueForPresentation && !RequirePlayerTurn())
         {
             return false;
         }
@@ -178,6 +187,19 @@ public sealed class FightManager : IDisposable
         {
             Debug.LogError($"Card '{card.Source.Definition.title}' has no behaviour.");
             return false;
+        }
+
+        if (queueForPresentation)
+        {
+            string cardInstanceId = card.Source.InstanceId;
+            if (!_queuedCardPlayIds.Add(cardInstanceId))
+            {
+                Debug.LogWarning($"Card '{cardInstanceId}' is already queued to be played.");
+                return false;
+            }
+
+            _queuedCardPlays.Enqueue(cardInstanceId);
+            return true;
         }
 
         ExecuteCommand("player.play-card", () =>
@@ -202,8 +224,14 @@ public sealed class FightManager : IDisposable
         {
             throw new ArgumentException("Card instance ID must not be empty.", nameof(cardInstanceId));
         }
-        if (!RequirePlayerTurn())
+        if (!IsPresentationPending && !RequirePlayerTurn())
         {
+            return false;
+        }
+        if (IsPresentationPending &&
+            (_isFightOver || !IsTurnStarted || !ReferenceEquals(CurrentActor, _player)))
+        {
+            Debug.LogWarning("This action is only available during the player's turn.");
             return false;
         }
 
@@ -229,6 +257,7 @@ public sealed class FightManager : IDisposable
 
         _pendingSnapshotId = null;
         IsPresentationPending = false;
+        ResolveQueuedCardPlays();
         return true;
     }
 
@@ -322,6 +351,19 @@ public sealed class FightManager : IDisposable
         }
 
         return true;
+    }
+
+    private void ResolveQueuedCardPlays()
+    {
+        while (!IsPresentationPending && !_isFightOver && _queuedCardPlays.Count > 0)
+        {
+            string cardInstanceId = _queuedCardPlays.Dequeue();
+            _queuedCardPlayIds.Remove(cardInstanceId);
+            if (TryPlayCard(cardInstanceId))
+            {
+                return;
+            }
+        }
     }
 
     private void ResolveEndPlayerTurn()
