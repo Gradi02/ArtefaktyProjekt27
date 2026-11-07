@@ -3,15 +3,14 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using DG.Tweening;
 using ANTK.Game.StateEngine.Actions;
-using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using UnityEngine.UI;
 
 public sealed class HandCardAnimator : MonoBehaviour
 {
     [Header("Cards")]
     [SerializeField] private RectTransform handRoot;
+    [SerializeField] private CardView cardPrefab; // <-- TUTAJ PRZYPISUJESZ SWÓJ PREFAB W INSPEKTORZE
     [SerializeField, Min(0)] private int initialPlaceholderCount;
     [SerializeField] private Vector2 cardSize = new Vector2(170f, 245f);
 
@@ -174,74 +173,26 @@ public sealed class HandCardAnimator : MonoBehaviour
 
     private void CreatePlaceholderCard()
     {
+        if (cardPrefab == null)
+        {
+            Debug.LogError("Card Prefab is not assigned in HandCardAnimator!", this);
+            return;
+        }
+
         int cardId = nextCardId++;
-        GameObject cardObject = new GameObject(
-            $"Placeholder Card {cardId:00}",
-            typeof(RectTransform),
-            typeof(CanvasGroup),
-            typeof(Image));
-        RectTransform card = cardObject.GetComponent<RectTransform>();
-        card.SetParent(handRoot, false);
+        CardView cardView = Instantiate(cardPrefab, handRoot);
+        cardView.name = $"Placeholder Card {cardId:00}";
+        cardView.SetupPlaceholder(cardId);
+
+        RectTransform card = cardView.RectTransform;
         card.anchorMin = new Vector2(0.5f, 0f);
         card.anchorMax = new Vector2(0.5f, 0f);
         card.pivot = new Vector2(0.5f, 0.5f);
         card.sizeDelta = cardSize;
-
-        Image border = cardObject.GetComponent<Image>();
-        border.color = new Color(0.12f, 0.14f, 0.2f);
-        border.raycastTarget = false;
-        cardObject.GetComponent<CanvasGroup>().alpha = 0f;
-
-        Image face = CreateCardImage(
-            card,
-            "Card Face",
-            cardSize - new Vector2(12f, 12f),
-            Vector2.zero,
-            new Color(0.91f, 0.87f, 0.74f));
-        Color accent = GetPlaceholderAccent(cardId);
-        CreateCardImage(
-            face.rectTransform,
-            "Title Placeholder",
-            new Vector2(cardSize.x - 42f, 16f),
-            new Vector2(0f, cardSize.y * 0.34f),
-            accent);
-        CreateCardImage(
-            face.rectTransform,
-            "Artwork Placeholder",
-            new Vector2(72f, 82f),
-            new Vector2(0f, 5f),
-            accent * 0.72f);
-        CreateCardImage(
-            face.rectTransform,
-            "Description Placeholder",
-            new Vector2(cardSize.x - 48f, 10f),
-            new Vector2(0f, -cardSize.y * 0.34f),
-            new Color(0.54f, 0.5f, 0.42f));
+        cardView.CanvasGroup.alpha = 0f;
 
         items.Add(card);
         cardInstanceIds.Add($"placeholder-{cardId}");
-    }
-
-    private static Image CreateCardImage(
-        RectTransform parent,
-        string objectName,
-        Vector2 size,
-        Vector2 position,
-        Color color)
-    {
-        GameObject imageObject = new GameObject(objectName, typeof(RectTransform), typeof(Image));
-        RectTransform rectTransform = imageObject.GetComponent<RectTransform>();
-        rectTransform.SetParent(parent, false);
-        rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
-        rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
-        rectTransform.pivot = new Vector2(0.5f, 0.5f);
-        rectTransform.anchoredPosition = position;
-        rectTransform.sizeDelta = size;
-
-        Image image = imageObject.GetComponent<Image>();
-        image.color = color;
-        image.raycastTarget = false;
-        return image;
     }
 
     private void EnsureCardComponents(RectTransform card)
@@ -250,13 +201,6 @@ public sealed class HandCardAnimator : MonoBehaviour
         {
             card.gameObject.AddComponent<CanvasGroup>();
         }
-
-        Image face = card.GetComponent<Image>();
-        if (face == null)
-        {
-            face = card.gameObject.AddComponent<Image>();
-        }
-        face.raycastTarget = false;
 
         cardInstanceIds.Add($"placeholder-{nextCardId++}");
     }
@@ -283,6 +227,7 @@ public sealed class HandCardAnimator : MonoBehaviour
             cardAction.CardTitle,
             cardAction.CardType,
             cardAction.CardCost);
+
         ApplyCardLayout(true);
         items.Add(card);
         cardInstanceIds.Add(cardAction.CardInstanceId);
@@ -387,13 +332,16 @@ public sealed class HandCardAnimator : MonoBehaviour
 
     private RectTransform CreateCard(string title, string cardType, int cost)
     {
-        GameObject cardObject = new GameObject(
-            $"Card - {title}",
-            typeof(RectTransform),
-            typeof(CanvasGroup),
-            typeof(Image));
-        RectTransform card = cardObject.GetComponent<RectTransform>();
-        card.SetParent(handRoot, false);
+        if (cardPrefab == null)
+        {
+            throw new InvalidOperationException("Card Prefab is not assigned in HandCardAnimator!");
+        }
+
+        CardView cardView = Instantiate(cardPrefab, handRoot);
+        cardView.name = $"Card - {title}";
+        cardView.Setup(title, cardType, cost);
+
+        RectTransform card = cardView.RectTransform;
         card.anchorMin = new Vector2(0.5f, 0f);
         card.anchorMax = new Vector2(0.5f, 0f);
         card.pivot = new Vector2(0.5f, 0.5f);
@@ -401,40 +349,9 @@ public sealed class HandCardAnimator : MonoBehaviour
         card.anchoredPosition = GetCardPosition(items.Count);
         card.localScale = Vector3.zero;
 
-        Image border = cardObject.GetComponent<Image>();
-        border.color = new Color(0.12f, 0.14f, 0.2f);
-        border.raycastTarget = false;
-        cardObject.GetComponent<CanvasGroup>().alpha = 0f;
+        cardView.CanvasGroup.alpha = 0f;
 
-        Image face = CreateCardImage(
-            card,
-            "Card Face",
-            cardSize - new Vector2(12f, 12f),
-            Vector2.zero,
-            new Color(0.91f, 0.87f, 0.74f));
-        CreateCardText(face.rectTransform, "Card Title", title, 26, new Vector2(0f, cardSize.y * 0.32f));
-        CreateCardText(face.rectTransform, "Card Cost", cost.ToString(), 22, new Vector2(cardSize.x * 0.34f, cardSize.y * 0.38f));
-        CreateCardText(face.rectTransform, "Card Type", cardType, 16, new Vector2(0f, -cardSize.y * 0.37f));
         return card;
-    }
-
-    private static void CreateCardText(RectTransform parent, string objectName, string text, int fontSize, Vector2 position)
-    {
-        GameObject textObject = new GameObject(objectName, typeof(RectTransform), typeof(TextMeshProUGUI));
-        RectTransform rect = textObject.GetComponent<RectTransform>();
-        rect.SetParent(parent, false);
-        rect.anchorMin = new Vector2(0.5f, 0.5f);
-        rect.anchorMax = new Vector2(0.5f, 0.5f);
-        rect.pivot = new Vector2(0.5f, 0.5f);
-        rect.anchoredPosition = position;
-        rect.sizeDelta = new Vector2(140f, 38f);
-
-        TextMeshProUGUI label = textObject.GetComponent<TextMeshProUGUI>();
-        label.text = text;
-        label.fontSize = fontSize;
-        label.alignment = TextAlignmentOptions.Center;
-        label.color = new Color(0.12f, 0.14f, 0.2f);
-        label.raycastTarget = false;
     }
 
     private static async Task PlaySequenceAsync(
@@ -799,18 +716,5 @@ public sealed class HandCardAnimator : MonoBehaviour
         return parentCanvas.renderMode == RenderMode.ScreenSpaceOverlay
             ? null
             : parentCanvas.worldCamera;
-    }
-
-    private static Color GetPlaceholderAccent(int cardId)
-    {
-        Color[] colors =
-        {
-            new Color(0.68f, 0.26f, 0.2f),
-            new Color(0.22f, 0.43f, 0.56f),
-            new Color(0.36f, 0.52f, 0.31f),
-            new Color(0.65f, 0.46f, 0.2f),
-            new Color(0.47f, 0.34f, 0.57f)
-        };
-        return colors[(cardId - 1) % colors.Length];
     }
 }
