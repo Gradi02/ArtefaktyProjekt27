@@ -15,8 +15,14 @@ public class ScaleOnHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
     [SerializeField] private float speed = 15f;
 
     [SerializeField] private Vector3 originalScale = Vector3.one;
+
     [Header("Obrót")]
     private float hoverRotation = 2f;
+
+    [Header("Sprite Swap")]
+    [SerializeField] private Sprite hoveredSprite; // Nowe pole na podmieniany sprite
+    [SerializeField] private Image targetImage;    // Obrazek, na którym podmieniamy (jeśli pusty, pobierze automatycznie z tego obiektu)
+    private Sprite defaultSprite;
 
     private Vector3 targetScale;
     private Quaternion originalRotation;
@@ -31,6 +37,17 @@ public class ScaleOnHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
     {
         selectableComponent = GetComponent<Selectable>();
         button = GetComponent<Button>();
+
+        // Pobranie Image i zapamiętanie domyślnego sprite'a
+        if (targetImage == null)
+        {
+            targetImage = GetComponent<Image>();
+        }
+        if (targetImage != null)
+        {
+            defaultSprite = targetImage.sprite;
+        }
+
         if (transform.localScale.sqrMagnitude < 0.01f)
         {
             originalScale = Vector3.one;
@@ -54,7 +71,7 @@ public class ScaleOnHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
 
     private void Update()
     {
-        if(!button.interactable) return;
+        if (button != null && !button.interactable) return;
 
         if (transform.localScale.x < 0.1f && !isHovered && !isSelected)
         {
@@ -92,6 +109,16 @@ public class ScaleOnHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
 
         bool isActive = isHovered || (isSelected && isNavigationMode);
 
+        // Podmiana sprite'a (jeśli hoveredSprite jest przypisany)
+        if (targetImage != null && hoveredSprite != null)
+        {
+            Sprite desiredSprite = isActive ? hoveredSprite : defaultSprite;
+            if (targetImage.sprite != desiredSprite)
+            {
+                targetImage.sprite = desiredSprite;
+            }
+        }
+
         targetScale = isActive ? originalScale * scaleMultiplier : originalScale;
         transform.localScale = Vector3.Lerp(transform.localScale, targetScale, Time.deltaTime * speed);
 
@@ -118,9 +145,16 @@ public class ScaleOnHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
     {
         enableTime = Time.unscaledTime;
     }
+
     private void OnDisable()
     {
         transform.localRotation = originalRotation;
+
+        // Przywrócenie domyślnego sprite'a przy wyłączeniu obiektu
+        if (targetImage != null && defaultSprite != null)
+        {
+            targetImage.sprite = defaultSprite;
+        }
 
         if (indicatorArrow != null)
         {
@@ -133,7 +167,6 @@ public class ScaleOnHover : MonoBehaviour, IPointerEnterHandler, IPointerExitHan
         isHovered = false;
         isSelected = false;
     }
-
 
     public void OnPointerEnter(PointerEventData eventData)
     {
