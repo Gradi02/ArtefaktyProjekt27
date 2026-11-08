@@ -17,3 +17,4 @@ MonoBehaviour:
   _type: 1
   _behaviour: {fileID: 11400000, guid: da7b6baf819cc1e4abb8a3403f3e4f63, type: 2}
   _baseCost: 0
+  _icon: {fileID: 21300000, guid: f8b77f575a4585741bd5567641a7740a, type: 3}

@@ -330,7 +330,7 @@ public sealed class HandCardAnimator : MonoBehaviour
         }
     }
 
-    private RectTransform CreateCard(string title, string cardType, int cost)
+    private RectTransform CreateCard(string title, string cardType, int cost, Sprite icon = null)
     {
         if (cardPrefab == null)
         {
@@ -339,7 +339,7 @@ public sealed class HandCardAnimator : MonoBehaviour
 
         CardView cardView = Instantiate(cardPrefab, handRoot);
         cardView.name = $"Card - {title}";
-        cardView.Setup(title, cardType, cost);
+        cardView.Setup(title, cardType, cost, icon);
 
         RectTransform card = cardView.RectTransform;
         card.anchorMin = new Vector2(0.5f, 0f);
