@@ -20,6 +20,7 @@ public class CardDefinition : ScriptableObject
             return _id;
         }
     }
+    public Sprite icon => _icon;
     public string title => _title;
     public CardType type => _type;
     public CardBehaviour behaviour => _behaviour;
@@ -30,6 +31,7 @@ public class CardDefinition : ScriptableObject
     [SerializeField] private CardType _type;
     [SerializeField] private CardBehaviour _behaviour;
     [SerializeField] private int _baseCost;
+    [SerializeField] private Sprite _icon;
 
     private void OnValidate()
     {

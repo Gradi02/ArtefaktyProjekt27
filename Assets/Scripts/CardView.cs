@@ -25,11 +25,12 @@ public class CardView : MonoBehaviour
     /// <summary>
     /// Ustawia właściwe dane karty.
     /// </summary>
-    public void Setup(string title, string cardType, int cost)
+    public void Setup(string title, string cardType, int cost, Sprite icon = null)
     {
         if (titleText != null) titleText.text = title;
         if (typeText != null) typeText.text = cardType;
         if (costText != null) costText.text = cost.ToString();
+        if (artworkImage != null) artworkImage.sprite = icon;
     }
 
     /// <summary>
