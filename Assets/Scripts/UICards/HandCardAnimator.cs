@@ -43,6 +43,7 @@ public sealed class HandCardAnimator : MonoBehaviour
     private Vector2 dragStartPosition;
     private int nextCardId = 1;
     private bool isInputBlocked;
+    private bool isInputDisabledByUi;
 
     public event Func<string, bool> CardPlayRequested;
 
@@ -140,7 +141,7 @@ public sealed class HandCardAnimator : MonoBehaviour
     private void Update()
     {
         Mouse mouse = Mouse.current;
-        if (mouse == null || isInputBlocked)
+        if (mouse == null || isInputBlocked || isInputDisabledByUi)
         {
             return;
         }
@@ -169,6 +170,11 @@ public sealed class HandCardAnimator : MonoBehaviour
         {
             ApplyCardLayout(true);
         }
+    }
+
+    public void SetUiInputEnabled(bool isEnabled)
+    {
+        isInputDisabledByUi = !isEnabled;
     }
 
     private void CreatePlaceholderCard()
