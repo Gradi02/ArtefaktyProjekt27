@@ -13,6 +13,7 @@ public sealed class BattleSceneController : MonoBehaviour
 
     private RunManager _runManager;
     private FightManager _fightManager;
+    private BattleHudController _battleHudController;
     private readonly PresentationEventQueue _presentationQueue = new PresentationEventQueue();
     private PresentationDirector _presentationDirector;
     private PresentationPlayer _presentationPlayer;
@@ -93,6 +94,16 @@ public sealed class BattleSceneController : MonoBehaviour
             return;
         }
 
+        Canvas battleCanvas = handCardAnimator.GetComponentInParent<Canvas>();
+        PresentationPlaybackHost presentationPlaybackHost = GetComponent<PresentationPlaybackHost>();
+        if (battleCanvas == null || presentationPlaybackHost == null)
+        {
+            Debug.LogError(
+                "Battle scene requires a Canvas for the hand and a PresentationPlaybackHost.",
+                this);
+            return;
+        }
+
         if (runManager.RegisterBattleSceneController(this))
         {
             _runManager = runManager;
@@ -107,7 +118,14 @@ public sealed class BattleSceneController : MonoBehaviour
             _fightManager.FightEnded += OnFightEnded;
             _fightManager.ActionSnapshotCreated += OnActionSnapshotCreated;
             _fightManager.QueuedCardPlayResolved += OnQueuedCardPlayResolved;
+            _battleHudController = gameObject.AddComponent<BattleHudController>();
+            _battleHudController.Initialize(
+                battleCanvas,
+                _fightManager,
+                handCardAnimator,
+                presentationPlaybackHost);
             _fightManager.StartFight();
+            _battleHudController.Refresh();
         }
     }
 
@@ -129,84 +147,6 @@ public sealed class BattleSceneController : MonoBehaviour
             _presentationPlayer.SnapshotPlaybackCompleted -= OnSnapshotPlaybackCompleted;
             _presentationPlayer.PresentationEventCompleted -= OnPresentationEventCompleted;
         }
-    }
-
-    private void OnGUI()
-    {
-        if (_fightManager == null)
-        {
-            return;
-        }
-
-        GUILayout.BeginArea(new Rect(12f, 12f, 360f, 360f), "StateEngine fight test", GUI.skin.window);
-        GUILayout.Label($"Active turn: {_fightManager.CurrentActor.name}");
-        GUILayout.Label(
-            $"Player: {_fightManager.PlayerState.name} " +
-            $"{_fightManager.PlayerState.health}/{_fightManager.PlayerState.maxHealth} HP " +
-            $"| Attack {_fightManager.PlayerState.AttackPower.CalculateValue()} " +
-            $"| [{GetStatuses(_fightManager.PlayerState)}]");
-        GUILayout.Label(
-            $"Enemy: {_fightManager.EnemyState.name} " +
-            $"{_fightManager.EnemyState.health}/{_fightManager.EnemyState.maxHealth} HP " +
-            $"| Attack {_fightManager.EnemyState.AttackPower.CalculateValue()} " +
-            $"| [{GetStatuses(_fightManager.EnemyState)}]");
-        GUILayout.Space(8f);
-        GUILayout.Label($"Hand ({_fightManager.PlayerDeck.Hand.Count}):");
-
-        if (_fightManager.IsFightOver)
-        {
-            GUILayout.Label("Fight ended. Waiting for presentation to finish.");
-        }
-        else if (_fightManager.IsPresentationPending)
-        {
-            GUILayout.Label("Waiting for action presentation to finish.");
-        }
-        else if (_fightManager.IsTurnStarted && ReferenceEquals(_fightManager.CurrentActor, _fightManager.PlayerState))
-        {
-            if (GUILayout.Button("Apply poison to opponent"))
-            {
-                _fightManager.ApplyPoisonToOpponent();
-            }
-            if (GUILayout.Button($"Deal {_fightManager.CurrentActor.AttackPower.CalculateValue()} damage to opponent"))
-            {
-                _fightManager.DamageOpponent();
-            }
-            if (GUILayout.Button("End player turn"))
-            {
-                _fightManager.EndPlayerTurn();
-            }
-        }
-        else
-        {
-            GUILayout.Label("Enemy turn is resolving automatically.");
-        }
-        GUILayout.EndArea();
-    }
-
-    private static string GetStatuses(LivingMixin entity)
-    {
-        System.Collections.Generic.IReadOnlyList<ANTK.Game.StateEngine.StatusSystem.StatusInstance> statuses =
-            ((IStateEntity)entity).ActiveStatuses;
-        if (statuses.Count == 0)
-        {
-            return "none";
-        }
-
-        string result = string.Empty;
-        foreach (ANTK.Game.StateEngine.StatusSystem.StatusInstance status in statuses)
-        {
-            if (result.Length > 0)
-            {
-                result += ", ";
-            }
-
-            string duration = status.IsPermanent
-                ? "permanent"
-                : $"{status.DurationTurns} turn(s)";
-            result += $"{status.Definition.Name} x{status.Stacks} ({duration})";
-        }
-
-        return result;
     }
 
     [ContextMenu("Test/Win Fight")]
@@ -260,6 +200,10 @@ public sealed class BattleSceneController : MonoBehaviour
 
     private void OnActionSnapshotCreated(object sender, GameActionSnapshotEventArgs eventArgs)
     {
+        if (_battleHudController != null)
+        {
+            _battleHudController.Refresh();
+        }
         _presentationDirector.ProcessSnapshot(eventArgs.Snapshot);
         PresentationQueueUpdated?.Invoke(_presentationQueue);
         if (_presentationPlayer == null)
@@ -296,6 +240,11 @@ public sealed class BattleSceneController : MonoBehaviour
         {
             handCardAnimator.SetCardQueued(cardInstanceId, false);
         }
+
+        if (_battleHudController != null)
+        {
+            _battleHudController.Refresh();
+        }
     }
 
     private async void StartPresentationPlayback()
@@ -318,6 +267,10 @@ public sealed class BattleSceneController : MonoBehaviour
     private void OnSnapshotPlaybackCompleted(string snapshotId)
     {
         CompleteActionPresentation(snapshotId);
+        if (_battleHudController != null)
+        {
+            _battleHudController.Refresh();
+        }
     }
 
     private void OnPresentationEventCompleted(PresentationEvent presentationEvent)
@@ -354,6 +307,10 @@ public sealed class BattleSceneController : MonoBehaviour
     private void OnFightEnded(object sender, FightEndedEventArgs eventArgs)
     {
         _pendingFightEnd = eventArgs;
+        if (_battleHudController != null)
+        {
+            _battleHudController.Refresh();
+        }
         Debug.Log(
             $"Fight ended: {(eventArgs.WasWon ? "win" : "loss")}. " +
             "Waiting for the outcome action presentation before leaving the battle scene.",
