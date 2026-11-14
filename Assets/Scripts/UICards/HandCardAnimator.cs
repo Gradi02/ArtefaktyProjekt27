@@ -45,7 +45,7 @@ public sealed class HandCardAnimator : MonoBehaviour
     private bool isInputBlocked;
     private bool isInputDisabledByUi;
 
-    public event Func<string, bool> CardPlayRequested;
+    public event Func<string, bool> CardQueueRequested;
 
     public int CardCount => items.Count;
 
@@ -503,7 +503,7 @@ public sealed class HandCardAnimator : MonoBehaviour
 
         if (dragDistance >= playDragDistance)
         {
-            PlayCard(releasedCard);
+            QueueCard(releasedCard);
         }
         else
         {
@@ -511,7 +511,7 @@ public sealed class HandCardAnimator : MonoBehaviour
         }
     }
 
-    private void PlayCard(RectTransform card)
+    private void QueueCard(RectTransform card)
     {
         int index = items.IndexOf(card);
         if (index < 0)
@@ -522,7 +522,7 @@ public sealed class HandCardAnimator : MonoBehaviour
         string cardInstanceId = cardInstanceIds[index];
         try
         {
-            CardPlayRequested?.Invoke(cardInstanceId);
+            CardQueueRequested?.Invoke(cardInstanceId);
         }
         catch
         {

@@ -1,5 +1,4 @@
 using ANTK.Game.StateEngine;
-using ANTK.Game.StateEngine.StatusSystem;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -8,12 +7,12 @@ public sealed class BattleSceneController : MonoBehaviour
 {
     [SerializeField] private Player scenePlayer;
     [SerializeField] private Enemy sceneEnemy;
-    [SerializeField] private PoisonStatusDefinition poisonDefinition;
     [SerializeField] private HandCardAnimator handCardAnimator;
 
     private RunManager _runManager;
     private FightManager _fightManager;
     private BattleHudController _battleHudController;
+    private HexBoardView _hexBoardView;
     private readonly PresentationEventQueue _presentationQueue = new PresentationEventQueue();
     private PresentationDirector _presentationDirector;
     private PresentationPlayer _presentationPlayer;
@@ -74,9 +73,9 @@ public sealed class BattleSceneController : MonoBehaviour
             ? runManager.SelectedCharacter
             : scenePlayer;
 
-        if (player == null || sceneEnemy == null || poisonDefinition == null)
+        if (player == null || sceneEnemy == null)
         {
-            Debug.LogError("Battle test requires a player, enemy, and poison definition.", this);
+            Debug.LogError("Battle scene requires a player and enemy.", this);
             return;
         }
 
@@ -107,17 +106,25 @@ public sealed class BattleSceneController : MonoBehaviour
         if (runManager.RegisterBattleSceneController(this))
         {
             _runManager = runManager;
+            HexBoard board = HexBoardGenerator.Generate(runManager.RunSeed);
+            HexEncounterState encounter = new HexEncounterState(board, playerState, enemyState);
+            _hexBoardView = gameObject.AddComponent<HexBoardView>();
+            _hexBoardView.Initialize(battleCanvas, encounter);
+            presentationPlaybackHost.RegisterAnimation(
+                new HexBoardPresentationAnimation(
+                    _hexBoardView,
+                    TimeSpan.FromSeconds(0.18d)));
             _fightManager = new FightManager(
                 playerState,
                 enemyState,
                 runManager.StateEngine,
-                poisonDefinition,
                 runManager.CardCollection,
-                player.BaseCardsDrawnAtTurnStart);
-            handCardAnimator.CardPlayRequested += OnCardPlayRequested;
+                player.BaseCardsDrawnAtTurnStart,
+                player.ProgrammingCapacity,
+                encounter);
+            handCardAnimator.CardQueueRequested += OnCardQueueRequested;
             _fightManager.FightEnded += OnFightEnded;
             _fightManager.ActionSnapshotCreated += OnActionSnapshotCreated;
-            _fightManager.QueuedCardPlayResolved += OnQueuedCardPlayResolved;
             _battleHudController = gameObject.AddComponent<BattleHudController>();
             _battleHudController.Initialize(
                 battleCanvas,
@@ -135,12 +142,11 @@ public sealed class BattleSceneController : MonoBehaviour
         {
             _fightManager.FightEnded -= OnFightEnded;
             _fightManager.ActionSnapshotCreated -= OnActionSnapshotCreated;
-            _fightManager.QueuedCardPlayResolved -= OnQueuedCardPlayResolved;
             _fightManager.Dispose();
         }
         if (handCardAnimator != null)
         {
-            handCardAnimator.CardPlayRequested -= OnCardPlayRequested;
+            handCardAnimator.CardQueueRequested -= OnCardQueueRequested;
         }
         if (_presentationPlayer != null)
         {
@@ -217,7 +223,7 @@ public sealed class BattleSceneController : MonoBehaviour
         StartPresentationPlayback();
     }
 
-    private bool OnCardPlayRequested(string cardInstanceId)
+    private bool OnCardQueueRequested(string cardInstanceId)
     {
         if (_fightManager == null)
         {
@@ -225,26 +231,17 @@ public sealed class BattleSceneController : MonoBehaviour
         }
 
         handCardAnimator.SetCardQueued(cardInstanceId, true);
-        bool accepted = _fightManager.TryPlayCard(cardInstanceId);
+        bool accepted = _fightManager.TryQueuePlayerCard(cardInstanceId);
         if (!accepted)
         {
             handCardAnimator.SetCardQueued(cardInstanceId, false);
         }
-
-        return accepted;
-    }
-
-    private void OnQueuedCardPlayResolved(string cardInstanceId, bool played)
-    {
-        if (!played)
-        {
-            handCardAnimator.SetCardQueued(cardInstanceId, false);
-        }
-
-        if (_battleHudController != null)
+        else if (_battleHudController != null)
         {
             _battleHudController.Refresh();
         }
+
+        return accepted;
     }
 
     private async void StartPresentationPlayback()

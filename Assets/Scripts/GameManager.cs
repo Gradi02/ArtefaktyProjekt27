@@ -51,7 +51,8 @@ public sealed class GameManager : MonoBehaviour
             return;
         }
 
-        runManager = new RunManager(selectedCharacter, _stateEngine, _starterDeckDefinition);
+        int runSeed = new System.Random().Next();
+        runManager = new RunManager(selectedCharacter, _stateEngine, _starterDeckDefinition, runSeed);
         runManager.StartRun();
     }
 

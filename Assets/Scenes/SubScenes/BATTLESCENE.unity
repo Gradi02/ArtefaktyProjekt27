@@ -1560,7 +1560,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BattleSceneController
   scenePlayer: {fileID: 2000000002}
   sceneEnemy: {fileID: 2000000012}
-  poisonDefinition: {fileID: 11400000, guid: 18d39a0c0f1840958bcf0718efb85d9f, type: 2}
   handCardAnimator: {fileID: 3000000006}
 --- !u!114 &1729810434
 MonoBehaviour:
@@ -1935,8 +1934,8 @@ MonoBehaviour:
   handRoot: {fileID: 3000000002}
   cardPrefab: {fileID: 5139628158885007649, guid: 2d1b09fac40e6954f82f10647564426b, type: 3}
   initialPlaceholderCount: 0
-  cardSize: {x: 250, y: 400}
-  cardSpacing: 300
+  cardSize: {x: 170, y: 245}
+  cardSpacing: 125
   cardBottomPadding: 24
   fanHeight: 24
   sideRotation: 8

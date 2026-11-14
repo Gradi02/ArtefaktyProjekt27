@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using ANTK.Game.StateEngine.Actions;
+using System.Collections.ObjectModel;
 using ANTK.Game.StateEngine;
-using ANTK.Game.StateEngine.StatusSystem;
+using ANTK.Game.StateEngine.Actions;
 using UnityEngine;
 
 public sealed class FightManager : IDisposable
@@ -10,13 +10,14 @@ public sealed class FightManager : IDisposable
     private readonly LivingMixin _player;
     private readonly LivingMixin _enemy;
     private readonly StateEngine _stateEngine;
-    private readonly PoisonStatusDefinition _poisonDefinition;
     private readonly CombatDeck _playerDeck;
-    private readonly int _baseCardsDrawnAtTurnStart;
+    private readonly HexEncounterState _encounter;
+    private readonly int _cardsDrawnAtTurnStart;
+    private readonly int _programmingCapacity;
     private readonly ActionSnapshotRecorder _actionRecorder = new ActionSnapshotRecorder();
     private readonly List<GameAction> _pendingOutcomeActions = new List<GameAction>();
-    private readonly Queue<string> _queuedCardPlays = new Queue<string>();
-    private readonly HashSet<string> _queuedCardPlayIds = new HashSet<string>();
+    private readonly List<ProgrammedAction> _program = new List<ProgrammedAction>();
+    private readonly ReadOnlyCollection<ProgrammedAction> _programView;
     private bool _isFightOver;
     private bool _isExecutingCommand;
     private string _pendingSnapshotId;
@@ -26,20 +27,23 @@ public sealed class FightManager : IDisposable
     public LivingMixin PlayerState => _player;
     public LivingMixin EnemyState => _enemy;
     public CombatDeck PlayerDeck => _playerDeck;
+    public HexEncounterState Encounter => _encounter;
+    public IReadOnlyList<ProgrammedAction> Program => _programView;
+    public int ProgrammingCapacity => _programmingCapacity;
     public bool IsTurnStarted { get; private set; }
     public bool IsFightOver => _isFightOver;
     public bool IsPresentationPending { get; private set; }
     public event EventHandler<FightEndedEventArgs> FightEnded;
     public event EventHandler<GameActionSnapshotEventArgs> ActionSnapshotCreated;
-    public event Action<string, bool> QueuedCardPlayResolved;
 
     public FightManager(
         LivingMixin player,
         LivingMixin enemy,
         StateEngine stateEngine,
-        PoisonStatusDefinition poisonDefinition,
         CardCollection cardCollection,
-        int baseCardsDrawnAtTurnStart)
+        int cardsDrawnAtTurnStart,
+        int programmingCapacity,
+        HexEncounterState encounter)
     {
         if (player == null)
         {
@@ -57,25 +61,36 @@ public sealed class FightManager : IDisposable
         {
             throw new ArgumentNullException(nameof(stateEngine));
         }
-        if (poisonDefinition == null)
-        {
-            throw new ArgumentNullException(nameof(poisonDefinition));
-        }
         if (cardCollection == null)
         {
             throw new ArgumentNullException(nameof(cardCollection));
         }
-        if (baseCardsDrawnAtTurnStart < 0)
+        if (cardsDrawnAtTurnStart < 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(baseCardsDrawnAtTurnStart));
+            throw new ArgumentOutOfRangeException(nameof(cardsDrawnAtTurnStart));
+        }
+        if (programmingCapacity < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(programmingCapacity));
+        }
+        if (encounter == null)
+        {
+            throw new ArgumentNullException(nameof(encounter));
+        }
+        if (!ReferenceEquals(encounter.Player.Unit, player) ||
+            !ReferenceEquals(encounter.Enemy.Unit, enemy))
+        {
+            throw new ArgumentException("The encounter ships must reference the fight entities.", nameof(encounter));
         }
 
         _player = player;
         _enemy = enemy;
         _stateEngine = stateEngine;
-        _poisonDefinition = poisonDefinition;
-        _playerDeck = new CombatDeck(cardCollection, int.MaxValue);
-        _baseCardsDrawnAtTurnStart = baseCardsDrawnAtTurnStart;
+        _cardsDrawnAtTurnStart = cardsDrawnAtTurnStart;
+        _programmingCapacity = programmingCapacity;
+        _encounter = encounter;
+        _playerDeck = new CombatDeck(cardCollection, Math.Max(1, cardsDrawnAtTurnStart));
+        _programView = _program.AsReadOnly();
         CurrentActor = _player;
         _player.onDeath += OnEntityDeath;
         _enemy.onDeath += OnEntityDeath;
@@ -98,154 +113,242 @@ public sealed class FightManager : IDisposable
         });
     }
 
-    public void EndPlayerTurn()
+    public bool TryQueueBasicCommand(HexCommandType commandType)
     {
-        if (_isFightOver || IsPresentationPending ||
-            !IsTurnStarted || !ReferenceEquals(CurrentActor, _player))
+        if (!IsBasicCommand(commandType))
         {
-            Debug.LogWarning("The player's turn cannot be ended in the current state.");
-            return;
+            throw new ArgumentException("Only always-available basic commands can use this method.", nameof(commandType));
         }
-
-        ExecuteCommand("player.end-turn", ResolveEndPlayerTurn);
-    }
-
-    public bool TryExecutePlayerCommand(string commandTypeId, Action command)
-    {
-        if (string.IsNullOrWhiteSpace(commandTypeId))
+        if (!RequirePlayerPlanning())
         {
-            throw new ArgumentException("Command type ID must not be empty.", nameof(commandTypeId));
+            return false;
         }
-        if (command == null)
-        {
-            throw new ArgumentNullException(nameof(command));
-        }
-        if (!RequirePlayerTurn())
+        if (!RequireAvailableSlot())
         {
             return false;
         }
 
-        ExecuteCommand(commandTypeId, command);
+        _program.Add(new ProgrammedAction(commandType, null));
         return true;
     }
 
-    public void ApplyPoisonToOpponent()
-    {
-        if (!RequirePlayerTurn())
-        {
-            return;
-        }
-
-        ExecuteCommand("player.apply-poison", () =>
-        {
-            _stateEngine.ApplyStatus(
-                CurrentOpponent,
-                _poisonDefinition,
-                durationTurns: _poisonDefinition.DurationTurns);
-            Debug.Log(
-                $"Poison applied to {CurrentOpponent.name}. " +
-                $"Stacks: {GetPoisonStacks(CurrentOpponent)}, " +
-                $"duration: {_poisonDefinition.DurationTurns} owner turns.");
-        });
-    }
-
-    public void DamageOpponent()
-    {
-        if (!RequirePlayerTurn())
-        {
-            return;
-        }
-
-        ExecuteCommand("player.attack", () =>
-        {
-            float damage = CurrentActor.AttackPower.CalculateValue();
-            _stateEngine.ProcessDamage(CurrentActor, CurrentOpponent, damage, "player.attack");
-            Debug.Log(
-                $"{CurrentActor.name} dealt {damage} damage to {CurrentOpponent.name}. " +
-                $"HP: {CurrentOpponent.health}/{CurrentOpponent.maxHealth}.");
-        });
-    }
-
-    public bool TryPlayCard(CombatCard card)
-    {
-        bool queueForPresentation = IsPresentationPending;
-        if (queueForPresentation &&
-            (_isFightOver || !IsTurnStarted || !ReferenceEquals(CurrentActor, _player)))
-        {
-            Debug.LogWarning("This action is only available during the player's turn.");
-            return false;
-        }
-        if (!queueForPresentation && !RequirePlayerTurn())
-        {
-            return false;
-        }
-        if (card == null || !_playerDeck.Hand.Contains(card))
-        {
-            Debug.LogWarning("The card is not in the player's hand.");
-            return false;
-        }
-        if (card.Source.Definition.behaviour == null)
-        {
-            Debug.LogError($"Card '{card.Source.Definition.title}' has no behaviour.");
-            return false;
-        }
-
-        if (queueForPresentation)
-        {
-            string cardInstanceId = card.Source.InstanceId;
-            if (!_queuedCardPlayIds.Add(cardInstanceId))
-            {
-                Debug.LogWarning($"Card '{cardInstanceId}' is already queued to be played.");
-                return false;
-            }
-
-            _queuedCardPlays.Enqueue(cardInstanceId);
-            return true;
-        }
-
-        ExecuteCommand("player.play-card", () =>
-        {
-            card.Source.Definition.behaviour.Perform(
-                new CardContext(_stateEngine, _player, _enemy, card));
-            if (!_playerDeck.Discard(card))
-            {
-                throw new InvalidOperationException("The played card could not be moved to the discard pile.");
-            }
-            _stateEngine.RecordExecutedAction(new CardPlayedAction(
-                ((IStateEntity)_player).EntityId,
-                card.Source.InstanceId,
-                card.Source.Definition.Id));
-        });
-        return true;
-    }
-
-    public bool TryPlayCard(string cardInstanceId)
+    public bool TryQueuePlayerCard(string cardInstanceId)
     {
         if (string.IsNullOrWhiteSpace(cardInstanceId))
         {
             throw new ArgumentException("Card instance ID must not be empty.", nameof(cardInstanceId));
         }
-        if (!IsPresentationPending && !RequirePlayerTurn())
+        if (!RequirePlayerPlanning() || !RequireAvailableSlot())
         {
             return false;
         }
-        if (IsPresentationPending &&
-            (_isFightOver || !IsTurnStarted || !ReferenceEquals(CurrentActor, _player)))
+
+        foreach (ProgrammedAction action in _program)
         {
-            Debug.LogWarning("This action is only available during the player's turn.");
-            return false;
+            if (action.CardInstanceId == cardInstanceId)
+            {
+                Debug.LogWarning($"Card '{cardInstanceId}' is already in the program.");
+                return false;
+            }
         }
 
         foreach (CombatCard card in _playerDeck.Hand)
         {
-            if (card.Source.InstanceId == cardInstanceId)
+            if (card.Source.InstanceId != cardInstanceId)
             {
-                return TryPlayCard(card);
+                continue;
             }
+
+            HexCommandType commandType;
+            if (!TryGetCommand(card.Source.Definition.programAction, out commandType))
+            {
+                Debug.LogWarning(
+                    $"Card '{card.Source.Definition.title}' does not define a supported programmed action.");
+                return false;
+            }
+
+            _program.Add(new ProgrammedAction(
+                commandType,
+                cardInstanceId,
+                card.Source.Definition.title));
+            return true;
         }
 
         Debug.LogWarning($"Card '{cardInstanceId}' is not in the player's hand.");
         return false;
+    }
+
+    public bool RemoveProgramAction(int index)
+    {
+        if (!RequirePlayerPlanning())
+        {
+            return false;
+        }
+        if (index < 0 || index >= _program.Count)
+        {
+            Debug.LogWarning($"Program slot index '{index}' is invalid.");
+            return false;
+        }
+
+        _program.RemoveAt(index);
+        return true;
+    }
+
+    public bool MoveProgramAction(int fromIndex, int toIndex)
+    {
+        if (!RequirePlayerPlanning())
+        {
+            return false;
+        }
+        if (fromIndex < 0 || fromIndex >= _program.Count ||
+            toIndex < 0 || toIndex >= _program.Count)
+        {
+            Debug.LogWarning("A program action cannot be moved outside the current sequence.");
+            return false;
+        }
+        if (fromIndex == toIndex)
+        {
+            return true;
+        }
+
+        ProgrammedAction action = _program[fromIndex];
+        _program.RemoveAt(fromIndex);
+        _program.Insert(toIndex, action);
+        return true;
+    }
+
+    public bool ClearProgram()
+    {
+        if (!RequirePlayerPlanning())
+        {
+            return false;
+        }
+
+        _program.Clear();
+        return true;
+    }
+
+    public void CommitProgram()
+    {
+        if (!RequirePlayerPlanning())
+        {
+            return;
+        }
+
+        ProgrammedAction[] committedProgram = _program.ToArray();
+        _program.Clear();
+        ExecuteCommand("player.program", () =>
+        {
+            foreach (ProgrammedAction action in committedProgram)
+            {
+                if (_isFightOver)
+                {
+                    break;
+                }
+
+                CombatCard card = null;
+                if (!string.IsNullOrEmpty(action.CardInstanceId))
+                {
+                    card = FindCardInHand(action.CardInstanceId);
+                    if (card == null || !_playerDeck.Discard(card))
+                    {
+                        throw new InvalidOperationException(
+                            $"Programmed card '{action.CardInstanceId}' could not be discarded.");
+                    }
+
+                    _stateEngine.RecordExecutedAction(new CardPlayedAction(
+                        ((IStateEntity)_player).EntityId,
+                        card.Source.InstanceId,
+                        card.Source.Definition.Id));
+                }
+
+                ResolveProgramAction(action, card);
+                TryFinishFight();
+            }
+
+            if (_isFightOver)
+            {
+                return;
+            }
+
+            EndCurrentTurn();
+            if (_isFightOver)
+            {
+                return;
+            }
+
+            CurrentActor = _enemy;
+            BeginTurn();
+            if (_isFightOver)
+            {
+                return;
+            }
+
+            PerformEnemyAction();
+            if (_isFightOver)
+            {
+                return;
+            }
+
+            EndCurrentTurn();
+            if (_isFightOver)
+            {
+                return;
+            }
+
+            CurrentActor = _player;
+            BeginTurn();
+        });
+    }
+
+    public string GetProgramPreview()
+    {
+        HexCoordinate position = _encounter.Player.Position;
+        int facing = _encounter.Player.Facing;
+        string targetSummary = "No fire command";
+
+        foreach (ProgrammedAction action in _program)
+        {
+            if (action.CommandType == HexCommandType.TurnLeft)
+            {
+                facing = (facing + 5) % 6;
+            }
+            else if (action.CommandType == HexCommandType.TurnRight)
+            {
+                facing = (facing + 1) % 6;
+            }
+            else if (action.CommandType == HexCommandType.MoveForward ||
+                     action.CommandType == HexCommandType.MoveBackward ||
+                     action.CommandType == HexCommandType.FullSails)
+            {
+                int moveCount = action.CommandType == HexCommandType.FullSails ? 2 : 1;
+                bool backward = action.CommandType == HexCommandType.MoveBackward;
+                for (int move = 0; move < moveCount; move++)
+                {
+                    int direction = backward ? (facing + 3) % 6 : facing;
+                    HexCoordinate destination = HexBoard.GetNeighbor(position, direction);
+                    if (!CanPreviewMove(destination))
+                    {
+                        break;
+                    }
+                    position = destination;
+                }
+            }
+            else if (action.CommandType == HexCommandType.Fire)
+            {
+                targetSummary = _encounter.TryGetTargetInFront(
+                    position,
+                    facing,
+                    _encounter.Enemy.Position,
+                    HexEncounterState.DefaultFireRange,
+                    out HexCoordinate target)
+                    ? $"Target at {target}"
+                    : "No target in facing";
+            }
+        }
+
+        return $"Slots: {_program.Count}/{_programmingCapacity}   " +
+            $"Predicted: {position}, facing {facing}   {targetSummary}";
     }
 
     public bool AcknowledgePresentationCompleted(string snapshotId)
@@ -258,24 +361,14 @@ public sealed class FightManager : IDisposable
 
         _pendingSnapshotId = null;
         IsPresentationPending = false;
-        ResolveQueuedCardPlays();
         return true;
     }
 
     public void Dispose()
     {
-        if (_stateEngine != null)
-        {
-            _stateEngine.ActionExecuted -= OnActionExecuted;
-        }
-        if (_player != null)
-        {
-            _player.onDeath -= OnEntityDeath;
-        }
-        if (_enemy != null)
-        {
-            _enemy.onDeath -= OnEntityDeath;
-        }
+        _stateEngine.ActionExecuted -= OnActionExecuted;
+        _player.onDeath -= OnEntityDeath;
+        _enemy.onDeath -= OnEntityDeath;
     }
 
     private void BeginTurn()
@@ -292,9 +385,9 @@ public sealed class FightManager : IDisposable
             return;
         }
 
-        if (ReferenceEquals(CurrentActor, _player) && _baseCardsDrawnAtTurnStart > 0)
+        if (ReferenceEquals(CurrentActor, _player) && _cardsDrawnAtTurnStart > 0)
         {
-            IReadOnlyList<CombatCard> drawnCards = _playerDeck.DrawCards(_baseCardsDrawnAtTurnStart);
+            IReadOnlyList<CombatCard> drawnCards = _playerDeck.DrawCards(_cardsDrawnAtTurnStart);
             foreach (CombatCard card in drawnCards)
             {
                 _stateEngine.RecordExecutedAction(new CardDrawnAction(
@@ -303,7 +396,7 @@ public sealed class FightManager : IDisposable
                     card.Source.Definition.Id,
                     card.Source.Definition.title,
                     card.Source.Definition.type.ToString(),
-                    card.Source.Definition.baseCost.value,
+                    0,
                     "draw_pile",
                     "hand",
                     "turn.start"));
@@ -329,75 +422,241 @@ public sealed class FightManager : IDisposable
 
     private void PerformEnemyAction()
     {
-        if (_isFightOver)
+        HexShipState enemyShip = _encounter.Enemy;
+        HexShipState playerShip = _encounter.Player;
+        HexCoordinate from = enemyShip.Position;
+        int facing = enemyShip.Facing;
+        bool hasTarget = _encounter.TryGetTargetInFront(
+            enemyShip,
+            playerShip,
+            HexEncounterState.DefaultFireRange,
+            out HexCoordinate target);
+
+        _stateEngine.RecordExecutedAction(new HexCommandResolvedAction(
+            ((IStateEntity)_enemy).EntityId,
+            "Fire",
+            hasTarget ? "Hit" : "No target in facing",
+            from.Q,
+            from.R,
+            from.Q,
+            from.R,
+            facing,
+            facing));
+
+        if (!hasTarget)
         {
             return;
         }
 
         float damage = _enemy.AttackPower.CalculateValue();
-        _stateEngine.ProcessDamage(_enemy, _player, damage, "enemy.attack");
+        _stateEngine.ProcessDamage(_enemy, _player, damage, "enemy.hex-fire");
         Debug.Log(
             $"{_enemy.name} dealt {damage} damage to {_player.name}. " +
             $"HP: {_player.health}/{_player.maxHealth}.");
         TryFinishFight();
     }
 
-    private bool RequirePlayerTurn()
+    private void ResolveProgramAction(ProgrammedAction action, CombatCard card)
+    {
+        switch (action.CommandType)
+        {
+            case HexCommandType.MoveForward:
+                ResolveMove(_encounter.Player, backward: false, "Move Forward");
+                break;
+            case HexCommandType.MoveBackward:
+                ResolveMove(_encounter.Player, backward: true, "Move Backward");
+                break;
+            case HexCommandType.TurnLeft:
+                ResolveTurn(_encounter.Player, left: true, "Turn Left");
+                break;
+            case HexCommandType.TurnRight:
+                ResolveTurn(_encounter.Player, left: false, "Turn Right");
+                break;
+            case HexCommandType.Wait:
+                RecordCommand(_encounter.Player, "Wait", "Waited");
+                break;
+            case HexCommandType.Fire:
+                ResolveFire(_encounter.Player, _encounter.Enemy, card);
+                break;
+            case HexCommandType.FullSails:
+                for (int step = 0; step < 2; step++)
+                {
+                    if (!ResolveMove(_encounter.Player, backward: false, "Full Sails"))
+                    {
+                        break;
+                    }
+                }
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(action), "Unsupported programmed command.");
+        }
+    }
+
+    private bool ResolveMove(HexShipState ship, bool backward, string commandName)
+    {
+        HexCoordinate from = ship.Position;
+        int facing = ship.Facing;
+        bool moved = _encounter.TryMove(ship, backward, out _, out _, out string result);
+        HexCoordinate to = ship.Position;
+        RecordCommand(ship, commandName, result, from, to, facing, ship.Facing);
+        return moved;
+    }
+
+    private void ResolveTurn(HexShipState ship, bool left, string commandName)
+    {
+        HexCoordinate position = ship.Position;
+        _encounter.Turn(ship, left, out int fromFacing, out int toFacing);
+        RecordCommand(
+            ship,
+            commandName,
+            "Turned",
+            position,
+            position,
+            fromFacing,
+            toFacing);
+    }
+
+    private void ResolveFire(HexShipState attacker, HexShipState target, CombatCard card)
+    {
+        HexCoordinate position = attacker.Position;
+        int facing = attacker.Facing;
+        bool hasTarget = _encounter.TryGetTargetInFront(
+            attacker,
+            target,
+            HexEncounterState.DefaultFireRange,
+            out HexCoordinate targetPosition);
+        RecordCommand(
+            attacker,
+            card == null ? "Fire" : card.Source.Definition.title,
+            hasTarget ? $"Target at {targetPosition}" : "No target in facing",
+            position,
+            position,
+            facing,
+            facing);
+
+        if (!hasTarget)
+        {
+            return;
+        }
+
+        if (card != null && card.Source.Definition.behaviour != null)
+        {
+            card.Source.Definition.behaviour.Perform(
+                new CardContext(_stateEngine, attacker.Unit, target.Unit, card));
+            return;
+        }
+
+        float damage = attacker.Unit.AttackPower.CalculateValue();
+        _stateEngine.ProcessDamage(
+            (IStateEntity)attacker.Unit,
+            (IStateEntity)target.Unit,
+            damage,
+            "player.hex-fire");
+        Debug.Log(
+            $"{attacker.Unit.name} dealt {damage} damage to {target.Unit.name}. " +
+            $"HP: {target.Unit.health}/{target.Unit.maxHealth}.");
+    }
+
+    private void RecordCommand(
+        HexShipState ship,
+        string commandName,
+        string result,
+        HexCoordinate from,
+        HexCoordinate to,
+        int fromFacing,
+        int toFacing)
+    {
+        _stateEngine.RecordExecutedAction(new HexCommandResolvedAction(
+            ((IStateEntity)ship.Unit).EntityId,
+            commandName,
+            result,
+            from.Q,
+            from.R,
+            to.Q,
+            to.R,
+            fromFacing,
+            toFacing));
+    }
+
+    private void RecordCommand(HexShipState ship, string commandName, string result)
+    {
+        RecordCommand(
+            ship,
+            commandName,
+            result,
+            ship.Position,
+            ship.Position,
+            ship.Facing,
+            ship.Facing);
+    }
+
+    private CombatCard FindCardInHand(string cardInstanceId)
+    {
+        foreach (CombatCard card in _playerDeck.Hand)
+        {
+            if (card.Source.InstanceId == cardInstanceId)
+            {
+                return card;
+            }
+        }
+
+        return null;
+    }
+
+    private bool RequirePlayerPlanning()
     {
         if (_isFightOver || IsPresentationPending ||
             !IsTurnStarted || !ReferenceEquals(CurrentActor, _player))
         {
-            Debug.LogWarning("This action is only available during the player's turn.");
+            Debug.LogWarning("Commands can only be programmed during the player's planning phase.");
             return false;
         }
 
         return true;
     }
 
-    private void ResolveQueuedCardPlays()
+    private bool RequireAvailableSlot()
     {
-        while (!IsPresentationPending && !_isFightOver && _queuedCardPlays.Count > 0)
+        if (_program.Count < _programmingCapacity)
         {
-            string cardInstanceId = _queuedCardPlays.Dequeue();
-            _queuedCardPlayIds.Remove(cardInstanceId);
-            bool played = TryPlayCard(cardInstanceId);
-            QueuedCardPlayResolved?.Invoke(cardInstanceId, played);
-            if (played)
-            {
-                return;
-            }
+            return true;
         }
+
+        Debug.LogWarning("The action program has no available slots.");
+        return false;
     }
 
-    private void ResolveEndPlayerTurn()
+    private bool CanPreviewMove(HexCoordinate destination)
     {
-        EndCurrentTurn();
-        if (_isFightOver)
+        return _encounter.Board.IsTraversable(destination) &&
+            destination != _encounter.Enemy.Position;
+    }
+
+    private static bool IsBasicCommand(HexCommandType commandType)
+    {
+        return commandType == HexCommandType.MoveForward ||
+            commandType == HexCommandType.MoveBackward ||
+            commandType == HexCommandType.TurnLeft ||
+            commandType == HexCommandType.TurnRight ||
+            commandType == HexCommandType.Wait ||
+            commandType == HexCommandType.Fire;
+    }
+
+    private static bool TryGetCommand(ProgrammedCardAction cardAction, out HexCommandType commandType)
+    {
+        if (cardAction == ProgrammedCardAction.Fire)
         {
-            return;
+            commandType = HexCommandType.Fire;
+            return true;
+        }
+        if (cardAction == ProgrammedCardAction.FullSails)
+        {
+            commandType = HexCommandType.FullSails;
+            return true;
         }
 
-        CurrentActor = _enemy;
-        BeginTurn();
-        if (_isFightOver)
-        {
-            return;
-        }
-
-        PerformEnemyAction();
-        if (_isFightOver)
-        {
-            return;
-        }
-
-        EndCurrentTurn();
-        if (_isFightOver)
-        {
-            return;
-        }
-
-        CurrentActor = _player;
-        BeginTurn();
+        commandType = default(HexCommandType);
+        return false;
     }
 
     private void ExecuteCommand(string commandTypeId, Action command)
@@ -435,19 +694,6 @@ public sealed class FightManager : IDisposable
     private void OnActionExecuted(GameAction action)
     {
         _actionRecorder.Record(action);
-    }
-
-    private int GetPoisonStacks(LivingMixin target)
-    {
-        foreach (StatusInstance status in ((IStateEntity)target).ActiveStatuses)
-        {
-            if (ReferenceEquals(status.Definition, _poisonDefinition))
-            {
-                return status.Stacks;
-            }
-        }
-
-        return 0;
     }
 
     private void OnEntityDeath(object sender, HealthChangeEventArgs eventArgs)
@@ -492,7 +738,6 @@ public sealed class FightManager : IDisposable
         {
             return;
         }
-
         if (!_isExecutingCommand)
         {
             ExecuteCommand("fight.entity-defeated", () => FinishFight(wasWon, defeated));
@@ -514,5 +759,49 @@ public sealed class FightManager : IDisposable
         }
 
         FightEnded?.Invoke(this, new FightEndedEventArgs(wasWon, defeated));
+    }
+}
+
+public sealed class ProgrammedAction
+{
+    public HexCommandType CommandType { get; }
+    public string CardInstanceId { get; }
+    public bool IsCard => !string.IsNullOrEmpty(CardInstanceId);
+    private readonly string _displayName;
+
+    public ProgrammedAction(
+        HexCommandType commandType,
+        string cardInstanceId,
+        string displayName = null)
+    {
+        CommandType = commandType;
+        CardInstanceId = cardInstanceId;
+        _displayName = displayName;
+    }
+
+    public string GetDisplayName()
+    {
+        if (IsCard)
+        {
+            return _displayName ?? CommandType.ToString();
+        }
+
+        switch (CommandType)
+        {
+            case HexCommandType.MoveForward:
+                return "Forward";
+            case HexCommandType.MoveBackward:
+                return "Backward";
+            case HexCommandType.TurnLeft:
+                return "Turn Left";
+            case HexCommandType.TurnRight:
+                return "Turn Right";
+            case HexCommandType.Wait:
+                return "Wait";
+            case HexCommandType.Fire:
+                return "Fire";
+            default:
+                return CommandType.ToString();
+        }
     }
 }

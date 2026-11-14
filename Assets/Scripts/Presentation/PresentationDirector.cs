@@ -141,6 +141,10 @@ public sealed class PresentationDirector
             {
                 return PresentationEventType.CardPlayed;
             }
+            if (action is HexCommandResolvedAction)
+            {
+                return PresentationEventType.HexCommandResolved;
+            }
             if (action is OpponentKilledAction)
             {
                 return PresentationEventType.OpponentKilled;

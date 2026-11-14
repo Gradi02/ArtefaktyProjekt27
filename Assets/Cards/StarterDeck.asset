@@ -17,3 +17,5 @@ MonoBehaviour:
     _quantity: 2
   - _definition: {fileID: 11400000, guid: 05ea3b90f17018945918af1f0c17daba, type: 2}
     _quantity: 2
+  - _definition: {fileID: 11400000, guid: 5c08e7cab2604977bd30df83e6f4a8cc, type: 2}
+    _quantity: 2

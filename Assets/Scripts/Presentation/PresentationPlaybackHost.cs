@@ -7,6 +7,7 @@ public sealed class PresentationPlaybackHost : MonoBehaviour
     [SerializeField] private PresentationAnimationBehaviour[] animations;
 
     private PresentationPlayer _presentationPlayer;
+    private PresentationAnimationRegistry _animationRegistry;
 
     public bool IsPaused => _presentationPlayer != null && _presentationPlayer.IsPaused;
     public float PlaybackSpeed
@@ -32,7 +33,7 @@ public sealed class PresentationPlaybackHost : MonoBehaviour
             return;
         }
 
-        PresentationAnimationRegistry animationRegistry = new PresentationAnimationRegistry();
+        _animationRegistry = new PresentationAnimationRegistry();
         if (animations != null)
         {
             foreach (PresentationAnimationBehaviour animation in animations)
@@ -44,14 +45,24 @@ public sealed class PresentationPlaybackHost : MonoBehaviour
                     return;
                 }
 
-                animationRegistry.Register(animation.EventType, animation);
+                _animationRegistry.Register(animation.EventType, animation);
             }
         }
 
         _presentationPlayer = new PresentationPlayer(
             battleSceneController.PresentationQueue,
-            animationRegistry);
+            _animationRegistry);
         battleSceneController.AttachPresentationPlayer(_presentationPlayer);
+    }
+
+    public void RegisterAnimation(IActionPresentationAnimation animation)
+    {
+        if (_animationRegistry == null)
+        {
+            throw new InvalidOperationException("Presentation animations have not been initialized.");
+        }
+
+        _animationRegistry.Register(animation.EventType, animation);
     }
 
     public void Pause()

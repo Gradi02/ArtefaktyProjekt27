@@ -29,7 +29,7 @@ public class CardView : MonoBehaviour
     {
         if (titleText != null) titleText.text = title;
         if (typeText != null) typeText.text = cardType;
-        if (costText != null) costText.text = cost.ToString();
+        if (costText != null) costText.text = "1";
         if (artworkImage != null) artworkImage.sprite = icon;
     }
 

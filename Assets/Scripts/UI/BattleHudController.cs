@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -13,8 +14,13 @@ public sealed class BattleHudController : MonoBehaviour
     private UnitStatusPanel _enemyPanel;
     private TextMeshProUGUI _turnText;
     private TextMeshProUGUI _deckText;
+    private TextMeshProUGUI _programPreviewText;
     private Button _endTurnButton;
+    private Button _clearProgramButton;
     private Button _pauseButton;
+    private readonly List<Button> _basicCommandButtons = new List<Button>();
+    private readonly List<ProgramSlotView> _programSlots = new List<ProgramSlotView>();
+    private readonly HashSet<string> _queuedCardIds = new HashSet<string>();
     private GameObject _pauseOverlay;
     private GameObject _pauseMainPage;
     private GameObject _pauseSettingsPage;
@@ -72,6 +78,8 @@ public sealed class BattleHudController : MonoBehaviour
             $"Ręka: {_fightManager.PlayerDeck.Hand.Count}   " +
             $"Talia: {_fightManager.PlayerDeck.DrawPile.Count}   " +
             $"Odrzucone: {_fightManager.PlayerDeck.DiscardPile.Count}";
+        _programPreviewText.text = _fightManager.GetProgramPreview();
+        SyncQueuedCards();
 
         if (_fightManager.IsFightOver)
         {
@@ -91,12 +99,31 @@ public sealed class BattleHudController : MonoBehaviour
             _turnText.text = "Tura przeciwnika";
         }
 
-        _endTurnButton.interactable =
+        bool canProgram =
             !_isPaused &&
             !_fightManager.IsFightOver &&
             !_fightManager.IsPresentationPending &&
             _fightManager.IsTurnStarted &&
             ReferenceEquals(_fightManager.CurrentActor, _fightManager.PlayerState);
+        _endTurnButton.interactable = canProgram;
+        _clearProgramButton.interactable = canProgram && _fightManager.Program.Count > 0;
+        for (int index = 0; index < _basicCommandButtons.Count; index++)
+        {
+            _basicCommandButtons[index].interactable =
+                canProgram && _fightManager.Program.Count < _fightManager.ProgrammingCapacity;
+        }
+        for (int index = 0; index < _programSlots.Count; index++)
+        {
+            ProgramSlotView slot = _programSlots[index];
+            bool occupied = index < _fightManager.Program.Count;
+            slot.Label.text = occupied
+                ? $"{index + 1}. {_fightManager.Program[index].GetDisplayName()}"
+                : $"{index + 1}. -";
+            slot.LeftButton.interactable = canProgram && occupied && index > 0;
+            slot.RightButton.interactable =
+                canProgram && occupied && index < _fightManager.Program.Count - 1;
+            slot.RemoveButton.interactable = canProgram && occupied;
+        }
         _pauseButton.interactable = !_fightManager.IsFightOver;
     }
 
@@ -164,12 +191,12 @@ public sealed class BattleHudController : MonoBehaviour
         _endTurnButton = CreateButton(
             hudRoot,
             "End Turn Button",
-            "Zakończ turę",
+            "Zatwierdź program",
             new Vector2(-168f, -13f),
             new Vector2(220f, 56f),
             new Vector2(1f, 1f),
             new Vector2(1f, 1f),
-            OnEndTurnClicked);
+            OnCommitProgramClicked);
 
         _playerPanel = UnitStatusPanel.Create(
             hudRoot,
@@ -187,7 +214,202 @@ public sealed class BattleHudController : MonoBehaviour
             new Vector2(380f, 230f));
         PositionPanel(_enemyPanel.transform, new Vector2(-24f, -100f), new Vector2(1f, 1f));
 
+        BuildProgrammingControls(hudRoot);
         BuildPauseMenu(hudRoot);
+    }
+
+    private void BuildProgrammingControls(RectTransform hudRoot)
+    {
+        RectTransform programRoot = CreateRect(
+            hudRoot,
+            "Program Slots",
+            new Vector2(0f, 360f),
+            new Vector2(930f, 126f),
+            new Vector2(0.5f, 0f),
+            new Vector2(0.5f, 0f));
+        Image programBackground = programRoot.gameObject.AddComponent<Image>();
+        programBackground.color = new Color(0.04f, 0.06f, 0.09f, 0.82f);
+        programBackground.raycastTarget = false;
+
+        _programPreviewText = CreateText(
+            programRoot,
+            "Program Preview",
+            string.Empty,
+            15,
+            new Vector2(0f, -8f),
+            new Vector2(900f, 28f),
+            new Vector2(0.5f, 1f),
+            new Vector2(0.5f, 1f),
+            TextAlignmentOptions.Center);
+
+        int slotCount = _fightManager.ProgrammingCapacity;
+        float slotWidth = Mathf.Min(210f, 900f / slotCount);
+        float controlSize = Mathf.Min(48f, slotWidth * 0.25f);
+        float firstSlotX = -slotWidth * (slotCount - 1) * 0.5f;
+        for (int index = 0; index < slotCount; index++)
+        {
+            int slotIndex = index;
+            RectTransform slotRoot = CreateRect(
+                programRoot,
+                $"Program Slot {index + 1}",
+                new Vector2(firstSlotX + index * slotWidth, -40f),
+                new Vector2(slotWidth - 8f, 72f),
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f));
+            Image slotBackground = slotRoot.gameObject.AddComponent<Image>();
+            slotBackground.color = new Color(0.12f, 0.16f, 0.2f, 0.95f);
+            slotBackground.raycastTarget = false;
+
+            TextMeshProUGUI label = CreateText(
+                slotRoot,
+                "Action",
+                $"{index + 1}. —",
+                16,
+                new Vector2(0f, 12f),
+                new Vector2(slotWidth - 16f, 26f),
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f),
+                TextAlignmentOptions.Center);
+            Button leftButton = CreateButton(
+                slotRoot,
+                "Move Left",
+                "<",
+                new Vector2(-controlSize - 2f, -18f),
+                new Vector2(controlSize, 28f),
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f),
+                () => MoveProgramAction(slotIndex, -1));
+            Button rightButton = CreateButton(
+                slotRoot,
+                "Move Right",
+                ">",
+                new Vector2(0f, -18f),
+                new Vector2(controlSize, 28f),
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f),
+                () => MoveProgramAction(slotIndex, 1));
+            Button removeButton = CreateButton(
+                slotRoot,
+                "Remove Action",
+                "X",
+                new Vector2(controlSize + 2f, -18f),
+                new Vector2(controlSize, 28f),
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f),
+                () => RemoveProgramAction(slotIndex));
+
+            _programSlots.Add(new ProgramSlotView(label, leftButton, rightButton, removeButton));
+        }
+
+        HexCommandType[] basicCommands =
+        {
+            HexCommandType.MoveForward,
+            HexCommandType.MoveBackward,
+            HexCommandType.TurnLeft,
+            HexCommandType.TurnRight,
+            HexCommandType.Wait,
+            HexCommandType.Fire
+        };
+        string[] labels = { "Forward", "Backward", "Turn Left", "Turn Right", "Wait", "Fire" };
+        float buttonWidth = 132f;
+        float firstButtonX = -buttonWidth * (basicCommands.Length - 1) * 0.5f;
+        for (int index = 0; index < basicCommands.Length; index++)
+        {
+            HexCommandType command = basicCommands[index];
+            Button button = CreateButton(
+                hudRoot,
+                $"Basic Command {command}",
+                labels[index],
+                new Vector2(firstButtonX + index * buttonWidth, 305f),
+                new Vector2(buttonWidth - 6f, 46f),
+                new Vector2(0.5f, 0f),
+                new Vector2(0.5f, 0f),
+                () => QueueBasicCommand(command));
+            _basicCommandButtons.Add(button);
+        }
+
+        _clearProgramButton = CreateButton(
+            hudRoot,
+            "Clear Program Button",
+            "Clear",
+            new Vector2(445f, 305f),
+            new Vector2(110f, 46f),
+            new Vector2(0.5f, 0f),
+            new Vector2(0.5f, 0f),
+            ClearProgram);
+    }
+
+    private void QueueBasicCommand(HexCommandType command)
+    {
+        _fightManager.TryQueueBasicCommand(command);
+        Refresh();
+    }
+
+    private void MoveProgramAction(int index, int offset)
+    {
+        _fightManager.MoveProgramAction(index, index + offset);
+        Refresh();
+    }
+
+    private void RemoveProgramAction(int index)
+    {
+        _fightManager.RemoveProgramAction(index);
+        Refresh();
+    }
+
+    private void ClearProgram()
+    {
+        _fightManager.ClearProgram();
+        Refresh();
+    }
+
+    private void SyncQueuedCards()
+    {
+        HashSet<string> desiredCardIds = new HashSet<string>();
+        foreach (ProgrammedAction action in _fightManager.Program)
+        {
+            if (action.IsCard)
+            {
+                desiredCardIds.Add(action.CardInstanceId);
+            }
+        }
+
+        foreach (string cardId in new List<string>(_queuedCardIds))
+        {
+            if (!desiredCardIds.Contains(cardId))
+            {
+                _handCardAnimator.SetCardQueued(cardId, false);
+                _queuedCardIds.Remove(cardId);
+            }
+        }
+
+        foreach (string cardId in desiredCardIds)
+        {
+            if (_queuedCardIds.Add(cardId))
+            {
+                _handCardAnimator.SetCardQueued(cardId, true);
+            }
+        }
+    }
+
+    private sealed class ProgramSlotView
+    {
+        public TextMeshProUGUI Label { get; }
+        public Button LeftButton { get; }
+        public Button RightButton { get; }
+        public Button RemoveButton { get; }
+
+        public ProgramSlotView(
+            TextMeshProUGUI label,
+            Button leftButton,
+            Button rightButton,
+            Button removeButton)
+        {
+            Label = label;
+            LeftButton = leftButton;
+            RightButton = rightButton;
+            RemoveButton = removeButton;
+        }
     }
 
     private void BuildPauseMenu(RectTransform hudRoot)
@@ -363,9 +585,9 @@ public sealed class BattleHudController : MonoBehaviour
             ShowMainPausePage);
     }
 
-    private void OnEndTurnClicked()
+    private void OnCommitProgramClicked()
     {
-        _fightManager.EndPlayerTurn();
+        _fightManager.CommitProgram();
         Refresh();
     }
 

@@ -11,5 +11,6 @@ public enum PresentationEventType
     OpponentKilled = 8,
     FightWon = 9,
     PlayerDied = 10,
-    CardPlayed = 11
+    CardPlayed = 11,
+    HexCommandResolved = 12
 }

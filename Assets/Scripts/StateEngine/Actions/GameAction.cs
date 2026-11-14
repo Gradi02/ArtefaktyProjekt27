@@ -180,6 +180,51 @@ namespace ANTK.Game.StateEngine.Actions
         }
     }
 
+    public sealed class HexCommandResolvedAction : GameAction
+    {
+        public override string TypeId => "hex.command-resolved";
+        public string EntityId { get; }
+        public string CommandName { get; }
+        public string Result { get; }
+        public int FromQ { get; }
+        public int FromR { get; }
+        public int ToQ { get; }
+        public int ToR { get; }
+        public int FromFacing { get; }
+        public int ToFacing { get; }
+
+        public HexCommandResolvedAction(
+            string entityId,
+            string commandName,
+            string result,
+            int fromQ,
+            int fromR,
+            int toQ,
+            int toR,
+            int fromFacing,
+            int toFacing)
+        {
+            EntityId = TurnStartedAction.RequireValue(entityId, nameof(entityId));
+            CommandName = TurnStartedAction.RequireValue(commandName, nameof(commandName));
+            Result = TurnStartedAction.RequireValue(result, nameof(result));
+            if (fromFacing < 0 || fromFacing >= 6)
+            {
+                throw new ArgumentOutOfRangeException(nameof(fromFacing));
+            }
+            if (toFacing < 0 || toFacing >= 6)
+            {
+                throw new ArgumentOutOfRangeException(nameof(toFacing));
+            }
+
+            FromQ = fromQ;
+            FromR = fromR;
+            ToQ = toQ;
+            ToR = toR;
+            FromFacing = fromFacing;
+            ToFacing = toFacing;
+        }
+    }
+
     public sealed class OpponentKilledAction : GameAction
     {
         public override string TypeId => "opponent.killed";
